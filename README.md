@@ -1,36 +1,147 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GigFlow
 
-## Getting Started
+**Your gig work. One flow.**
 
-First, run the development server:
+GigFlow is a web platform that gives rideshare and delivery drivers a single workspace to
+track earnings, expenses and mileage, evaluate incoming offers against personal rules,
+plan their schedule, and understand what their time is actually worth — across Uber,
+Lyft, DoorDash, Instacart, Amazon Flex and any other platform.
+
+It is an independent product and is not affiliated with or endorsed by any gig platform.
+
+---
+
+## Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | Next.js 16 (App Router) + React 19 | SSR/server components, route handlers, long-term ecosystem |
+| Language | TypeScript (strict) | Safety across the API boundary |
+| Database | SQLite via Prisma 6 (dev) | Zero-service local dev; schema ports to Postgres for production |
+| Auth | Custom: scrypt passwords + opaque session cookies | Full control, no provider lock-in, OAuth-ready `Account` model |
+| Validation | Zod | Shared schemas at the API boundary |
+| Charts | Recharts | Lightweight, composable |
+| Tests | Vitest (unit + DB integration), Playwright (e2e) | Fast unit loop + real-browser flows |
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env        # set APP_SECRET (see below)
+npm install                 # runs prisma generate via postinstall
+npx prisma migrate dev      # create + migrate prisma/dev.db
+npm run db:seed             # seed the platform catalog
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Generate a real secret for anything beyond local dev:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Register an account, complete onboarding, and enable **demo data** to explore a
+populated workspace. Demo records are stored with `source="DEMO"`, never mix with
+real entries, and can be wiped from **Settings → Data**.
 
-## Learn More
+### Demo account (optional)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+SEED_DEMO=1 npm run db:seed   # demo@gigflow.app / DemoDriver1
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+prisma/            schema + migrations + seed
+src/
+  app/
+    (marketing)/   landing, privacy, terms, status
+    (auth)/        login, register, password reset, email verify
+    (app)/         authenticated shell: dashboard, earnings, expenses,
+                   mileage, offers, rules, platforms, schedule, analytics,
+                   notifications, settings/*
+    api/           REST route handlers — the only mutation path
+    onboarding/    first-run setup wizard
+  components/      UI primitives, charts, shell, feature views
+  lib/
+    auth/          password hashing (scrypt), sessions, tokens, mailer
+    integrations/  PlatformIntegration adapter contract + registry + mock provider
+    rules/         declarative offer-rule engine
+    demo.ts        clearly-marked demo data generator
+    metrics.ts     all earnings/expense/mileage aggregation
+    catalog.ts     platform catalog (honest availability status)
+tests/
+  unit/            rules engine, dates, units, auth/crypto
+  integration/     DB CRUD, cascade deletes, metrics, demo separation
+  e2e/             Playwright: register → onboard → core flows
+docs/              architecture, API, integrations, database notes
+```
 
-## Deploy on Vercel
+## API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+All endpoints live under `/api/*`, return `{ data }` on success and
+`{ error: { code, message } }` on failure, and require the session cookie
+(except `/api/auth/*` public flows). Every mutation validates input with Zod,
+enforces per-user ownership, and applies same-origin + rate-limit checks to
+auth endpoints. See `docs/api.md`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Database
+
+Normalized schema — `User`, `Account`, `Session`, `VerificationToken`,
+`Platform`, `PlatformConnection`, `Vehicle`, `Trip`, `Delivery`, `Offer`,
+`Earning`, `Expense`, `MileageRecord`, `Goal`, `Rule`, `ScheduleEntry`,
+`Notification`, `UserPreference`. Money is integer cents; distances are km;
+enum-like fields are constrained strings (see `docs/database.md` for the
+Postgres migration path).
+
+## Integrations — honest by design
+
+GigFlow ships a `PlatformIntegration` adapter interface (`authenticate`,
+`disconnect`, `sync`, `getDriverStatus`) plus a deterministic **demo provider**.
+
+Real-world constraint (as of Sept 2026): Uber, Lyft, DoorDash, Uber Eats,
+Instacart, Grubhub and Amazon Flex do **not** offer public APIs for
+driver-facing earnings/trip sync. Instead of faking connections, those
+platforms are marked **UNAVAILABLE — manual tracking** in the catalog, and the
+adapter architecture is ready for any official API that appears. Details:
+`docs/integrations.md`.
+
+## Security
+
+- scrypt password hashing (salted), timing-safe compare
+- Opaque session tokens, SHA-256 hashed at rest, `HttpOnly` + `SameSite=Lax`
+- Same-origin checks on mutations + Zod validation everywhere
+- Per-user authorization on every query (`userId` scoping + ownership checks)
+- Rate limiting on auth endpoints
+- AES-256-GCM for integration credentials; secrets only via env vars
+- No secrets in the repo; `.env*` is gitignored
+
+See `SECURITY.md` for reporting and hardening notes.
+
+## Testing
+
+```bash
+npm test                # unit + integration (vitest)
+npm run typecheck       # tsc --noEmit
+npm run lint            # eslint
+npm run test:e2e        # playwright (installs its own db + server on :3100)
+```
+
+## Scripts
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | dev server |
+| `npm run build` / `start` | production build / serve |
+| `npm run db:migrate` | create + apply a dev migration |
+| `npm run db:deploy` | apply migrations (prod) |
+| `npm run db:seed` | seed platform catalog |
+| `npm run db:studio` | Prisma Studio |
+| `npm test` | vitest suite |
+| `npm run test:e2e` | playwright suite |
+
+## Deployment
+
+Any Node host works. For production: switch `DATABASE_URL` + Prisma provider to
+PostgreSQL (see `docs/database.md`), set a real `APP_SECRET`, set `APP_URL`, and
+wire a transactional email provider into `src/lib/auth/mailer.ts`.

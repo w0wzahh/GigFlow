@@ -1,0 +1,398 @@
+// GigFlow database schema.
+// SQLite is used for local development. All enum-like fields are strings with
+// documented value sets so the schema can be ported to PostgreSQL enums later.
+// Money is stored as integer cents in the user's currency.
+// Distances are stored in kilometers; display units are a user preference.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String    @default("")
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  accounts             Account[]
+  sessions             Session[]
+  verificationTokens   VerificationToken[]
+  platformConnections  PlatformConnection[]
+  vehicles             Vehicle[]
+  trips                Trip[]
+  deliveries           Delivery[]
+  offers               Offer[]
+  earnings             Earning[]
+  expenses             Expense[]
+  mileageRecords       MileageRecord[]
+  goals                Goal[]
+  rules                Rule[]
+  notifications        Notification[]
+  scheduleEntries      ScheduleEntry[]
+  preference           UserPreference?
+}
+
+// OAuth-ready account linking. No OAuth providers are enabled yet, but the
+// model exists so providers can be added without a schema migration.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String // e.g. "google", "apple"
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique // sha256 hash of the cookie token
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Used for email verification and password reset.
+// type: EMAIL_VERIFY | PASSWORD_RESET
+model VerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique // sha256 hash of the emailed token
+  type      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// Catalog of gig platforms. Seeded by the app, not user-created.
+// status: AVAILABLE | COMING_SOON | UNAVAILABLE | MOCK
+// category: RIDESHARE | DELIVERY | SHOPPING | FREIGHT | OTHER
+model Platform {
+  id               String  @id @default(cuid())
+  key              String  @unique // e.g. "uber", "doordash"
+  name             String
+  category         String
+  status           String  @default("COMING_SOON")
+  adapterKey       String? // which integration adapter serves this platform
+  statusNote       String? // why unavailable / what "available" means
+  color            String  @default("#64748b")
+  website          String?
+
+  connections PlatformConnection[]
+  earnings    Earning[]
+  offers      Offer[]
+  trips       Trip[]
+  deliveries  Delivery[]
+}
+
+model PlatformConnection {
+  id             String    @id @default(cuid())
+  userId         String
+  platformId     String
+  status         String    @default("PENDING") // CONNECTED | DISCONNECTED | ERROR | PENDING | MOCK
+  lastSyncAt     DateTime?
+  credentialsEnc String?   // AES-256-GCM encrypted blob; never leaves the server
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  trips    Trip[]
+  deliveries Delivery[]
+
+  @@unique([userId, platformId])
+  @@index([userId])
+}
+
+model Vehicle {
+  id           String   @id @default(cuid())
+  userId       String
+  nickname     String
+  make         String?
+  model        String?
+  year         Int?
+  fuelType     String?  // GAS | DIESEL | HYBRID | EV | OTHER
+  fuelEconomy  Float?   // stored as L/100km-equivalent baseline; see docs
+  batteryKwh   Float?   // EV only
+  financing    String?  // OWNED | FINANCED | LEASED | RENTAL
+  monthlyCostCents Int?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trips          Trip[]
+  deliveries     Delivery[]
+  expenses       Expense[]
+  mileageRecords MileageRecord[]
+
+  @@index([userId])
+}
+
+// source: MANUAL | DEMO | SYNC
+// status: COMPLETED | CANCELLED | IN_PROGRESS
+model Trip {
+  id                   String   @id @default(cuid())
+  userId               String
+  platformId           String?
+  platformConnectionId String?
+  vehicleId            String?
+  externalId           String?
+  startedAt            DateTime
+  endedAt              DateTime?
+  distanceKm           Float    @default(0)
+  durationMin          Float    @default(0)
+  pickupZone           String?
+  dropoffZone          String?
+  payoutCents          Int      @default(0)
+  tipCents             Int      @default(0)
+  bonusCents           Int      @default(0)
+  status               String   @default("COMPLETED")
+  source               String   @default("MANUAL")
+  createdAt            DateTime @default(now())
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform           Platform?           @relation(fields: [platformId], references: [id], onDelete: SetNull)
+  platformConnection PlatformConnection? @relation(fields: [platformConnectionId], references: [id], onDelete: SetNull)
+  vehicle            Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([platformId])
+}
+
+model Delivery {
+  id                   String   @id @default(cuid())
+  userId               String
+  platformId           String?
+  platformConnectionId String?
+  vehicleId            String?
+  externalId           String?
+  startedAt            DateTime
+  endedAt              DateTime?
+  distanceKm           Float    @default(0)
+  durationMin          Float    @default(0)
+  pickupZone           String?
+  dropoffZone          String?
+  payoutCents          Int      @default(0)
+  tipCents             Int      @default(0)
+  bonusCents           Int      @default(0)
+  itemsCount           Int?
+  status               String   @default("COMPLETED")
+  source               String   @default("MANUAL")
+  createdAt            DateTime @default(now())
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform           Platform?           @relation(fields: [platformId], references: [id], onDelete: SetNull)
+  platformConnection PlatformConnection? @relation(fields: [platformConnectionId], references: [id], onDelete: SetNull)
+  vehicle            Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([platformId])
+}
+
+// An incoming work opportunity evaluated against user rules.
+// status: PENDING | ACCEPTED | DECLINED | EXPIRED
+model Offer {
+  id                String   @id @default(cuid())
+  userId            String
+  platformId        String?
+  pickup            String?
+  destination       String?
+  estDistanceKm     Float     @default(0)
+  estDurationMin    Float     @default(0)
+  payoutCents       Int       @default(0)
+  tipCents          Int       @default(0)
+  estExpensesCents  Int       @default(0)
+  status            String    @default("PENDING")
+  evalLabel         String?   // e.g. "Good Offer" from rule evaluation
+  evalReasons       String?   // JSON array of matched rule names
+  receivedAt        DateTime  @default(now())
+  source            String    @default("MANUAL")
+  createdAt         DateTime  @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform Platform? @relation(fields: [platformId], references: [id], onDelete: SetNull)
+
+  @@index([userId, receivedAt])
+  @@index([userId, status])
+}
+
+// Granular earning entries. Trips/deliveries may generate an Earning on
+// creation; standalone entries (bonuses, adjustments) are also allowed.
+// category: TRIP | DELIVERY | TIP | BONUS | ADJUSTMENT | QUEST | OTHER
+model Earning {
+  id              String   @id @default(cuid())
+  userId          String
+  platformId      String?
+  category        String   @default("OTHER")
+  amountCents     Int      @default(0)
+  tipCents        Int      @default(0)
+  bonusCents      Int      @default(0)
+  adjustmentsCents Int     @default(0)
+  earnedAt        DateTime
+  hours           Float    @default(0) // hours attributable to this earning
+  distanceKm      Float    @default(0)
+  notes           String?
+  source          String   @default("MANUAL")
+  createdAt       DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform Platform? @relation(fields: [platformId], references: [id], onDelete: SetNull)
+
+  @@index([userId, earnedAt])
+  @@index([platformId])
+}
+
+// category: FUEL | CHARGING | MAINTENANCE | INSURANCE | PARKING | TOLLS |
+//           CAR_PAYMENT | LEASE | PHONE | OTHER
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  vehicleId   String?
+  category    String
+  amountCents Int
+  occurredAt  DateTime
+  description String?
+  receiptUrl  String?
+  source      String   @default("MANUAL")
+  createdAt   DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([userId, category])
+}
+
+// purpose: WORK | PERSONAL | OTHER
+model MileageRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  vehicleId     String?
+  date          DateTime
+  distanceKm    Float
+  purpose       String   @default("WORK")
+  startLocation String?
+  endLocation   String?
+  source        String   @default("MANUAL")
+  createdAt     DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+}
+
+// period: DAILY | WEEKLY | MONTHLY | CUSTOM
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String   @default("")
+  period      String
+  targetCents Int
+  startDate   DateTime?
+  endDate     DateTime?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, active])
+}
+
+// conditionsJson: [{field, op, value}] — see src/lib/rules/engine.ts
+// actionJson: {label, notify}
+model Rule {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  enabled        Boolean  @default(true)
+  priority       Int      @default(0)
+  conditionsJson String
+  actionJson     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+}
+
+// type: MILESTONE | GOAL | SYNC_FAILURE | ACCOUNT | RULE | PLATFORM | SYSTEM
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    @default("SYSTEM")
+  title     String
+  body      String?
+  dataJson  String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model ScheduleEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String?
+  dayOfWeek   Int?     // 0-6 for recurring entries
+  date        DateTime? // for one-off entries
+  startMin    Int      // minutes from midnight
+  endMin      Int
+  zone        String?
+  platformIds String?  // JSON array of platform ids
+  targetCents Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  currency              String   @default("USD")
+  country               String   @default("US")
+  timezone              String   @default("UTC")
+  distanceUnit          String   @default("MI") // MI | KM
+  theme                 String   @default("SYSTEM") // LIGHT | DARK | SYSTEM
+  targetHourlyCents     Int?
+  weeklyGoalCents       Int?
+  notificationPrefsJson String   @default("{}")
+  privacyJson           String   @default("{}")
+  onboardingCompletedAt DateTime?
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
