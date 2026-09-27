@@ -10,6 +10,8 @@ import android.widget.TextView
 import app.gigflow.driver.OfferLog
 import app.gigflow.driver.ui.Ios.Palette
 import app.gigflow.driver.ui.Ios.dp
+import app.gigflow.driver.ui.Ios.haptic
+import app.gigflow.driver.ui.Ios.pressable
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -121,7 +123,60 @@ class OffersScreen(ctx: Context, private val p: Palette) {
             setTextColor(verdictColor)
             setTypeface(typeface, Typeface.BOLD)
         })
+        row.pressable()
+        row.setOnClickListener { row.haptic(); showDetail(e, verdictColor, verdictLabel) }
         return row
+    }
+
+    /** Offer detail sheet — full metrics + action taken. */
+    private fun showDetail(e: OfferLog.Entry, tint: Int, verdictLabel: String) {
+        val sheet = IosSheet(ctx, p)
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 8f), dp(ctx, 20f), dp(ctx, 16f))
+        }
+        col.addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(View(ctx).apply {
+                background = Ios.rounded(7f, tint, ctx)
+                layoutParams = LinearLayout.LayoutParams(dp(ctx, 12f), dp(ctx, 12f))
+                    .apply { rightMargin = dp(ctx, 10f) }
+            })
+            addView(TextView(ctx).apply {
+                text = "${Ios.money(e.payoutCents)} · $verdictLabel"
+                textSize = Ios.T_HEADLINE; setTypeface(typeface, Typeface.BOLD); setTextColor(p.label)
+            })
+        })
+        col.addView(TextView(ctx).apply {
+            text = e.pkg.substringAfterLast('.') + " · " +
+                SimpleDateFormat("EEE, MMM d 'at' h:mm a", Locale.US).format(Date(e.at))
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
+            setPadding(0, dp(ctx, 4f), 0, dp(ctx, 14f))
+        })
+        val metrics = listOfNotNull(
+            e.distanceKm?.let { "Distance" to "%.1f mi".format(it * 0.621371) },
+            e.durationMin?.let { "Duration" to "${it.toInt()} min" },
+            e.perMileCents?.let { "Per mile" to "$%.2f".format(it / 100f) },
+            e.perHourCents?.let { "Per hour" to "$%.2f".format(it / 100f) },
+            "Action" to (if (e.action == "shown") "Seen only" else e.action.replace('_', ' ')),
+        )
+        metrics.forEachIndexed { i, (k, v) ->
+            if (i > 0) col.addView(Sections.separator(ctx, p))
+            col.addView(LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(ctx, 9f), 0, dp(ctx, 9f))
+                addView(TextView(ctx).apply {
+                    text = k; textSize = Ios.T_BODY; setTextColor(p.label2)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+                addView(TextView(ctx).apply {
+                    text = v; textSize = Ios.T_BODY; setTextColor(p.label)
+                    setTypeface(typeface, Typeface.BOLD)
+                })
+            })
+        }
+        sheet.add(col).show()
     }
 
     private fun emptyState(): View = LinearLayout(ctx).apply {

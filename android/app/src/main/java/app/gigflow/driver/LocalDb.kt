@@ -11,7 +11,7 @@ import org.json.JSONObject
  * mileage). Rows carry a `clientId` UUID — the server dedupes on it, so the
  * app can retry pushes after being offline without double-counting.
  */
-class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 1) {
+class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -24,9 +24,23 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 1) {
                  synced INTEGER NOT NULL DEFAULT 0
                )""",
         )
+        createSchedules(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) {}
+    private fun createSchedules(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS schedules(
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 client_id TEXT UNIQUE NOT NULL,
+                 payload TEXT NOT NULL,
+                 synced INTEGER NOT NULL DEFAULT 0
+               )""",
+        )
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) {
+        if (old < 2) createSchedules(db)
+    }
 
     data class Row(
         val id: Long,
@@ -107,23 +121,92 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 1) {
             it.moveToFirst(); it.getInt(0)
         }
 
+    // ---- schedule entries ----
+
+    data class Sched(val clientId: String, val payload: JSONObject, val synced: Boolean)
+
+    fun insertSchedule(payload: JSONObject): Sched {
+        val clientId = java.util.UUID.randomUUID().toString()
+        payload.put("clientId", clientId)
+        writableDatabase.execSQL(
+            "INSERT INTO schedules(client_id, payload, synced) VALUES(?,?,0)",
+            arrayOf(clientId, payload.toString()),
+        )
+        return Sched(clientId, payload, false)
+    }
+
+    fun schedules(): List<Sched> {
+        val out = mutableListOf<Sched>()
+        readableDatabase.rawQuery(
+            "SELECT client_id, payload, synced FROM schedules ORDER BY id ASC", null,
+        ).use { c ->
+            while (c.moveToNext()) out.add(Sched(c.getString(0), JSONObject(c.getString(1)), c.getInt(2) == 1))
+        }
+        return out
+    }
+
+    fun deleteSchedule(clientId: String) {
+        writableDatabase.execSQL("DELETE FROM schedules WHERE client_id = ?", arrayOf(clientId))
+    }
+
+    fun markScheduleSynced(clientId: String) {
+        writableDatabase.execSQL("UPDATE schedules SET synced = 1 WHERE client_id = ?", arrayOf(clientId))
+    }
+
     /** Local aggregates so the dashboard works offline. */
-    fun totals(sinceMs: Long): Totals {
+    fun totals(sinceMs: Long): Totals = stats(sinceMs).let {
+        Totals(it.earnedCents, it.spentCents, it.km)
+    }
+
+    /** Richer aggregates for the analytics tab: hours, tips, record counts. */
+    fun stats(sinceMs: Long): Stats {
         var earned = 0; var spent = 0; var km = 0.0
+        var hours = 0.0; var tips = 0; var jobs = 0
         readableDatabase.rawQuery(
             "SELECT type, payload FROM records WHERE created_at >= ?", arrayOf(sinceMs.toString()),
         ).use { c ->
             while (c.moveToNext()) {
                 val p = JSONObject(c.getString(1))
                 when (c.getString(0)) {
-                    "earning" -> earned += p.optInt("amountCents")
+                    "earning" -> {
+                        earned += p.optInt("amountCents")
+                        tips += p.optInt("tipCents")
+                        hours += p.optDouble("hours")
+                        jobs++
+                    }
                     "expense" -> spent += p.optInt("amountCents")
                     "mileage" -> km += p.optDouble("distanceKm")
                 }
             }
         }
-        return Totals(earned, spent, km)
+        return Stats(earned, spent, km, hours, tips, jobs)
+    }
+
+    /** Per-day gross cents for the last [days] days (index 0 = oldest). */
+    fun dailyGross(days: Int): FloatArray {
+        val out = FloatArray(days)
+        val cal = java.util.Calendar.getInstance()
+        readableDatabase.rawQuery(
+            "SELECT created_at, payload FROM records WHERE type = 'earning'", null,
+        ).use { c ->
+            while (c.moveToNext()) {
+                val at = c.getLong(0)
+                val d = java.util.Calendar.getInstance().apply { timeInMillis = at }
+                val age = dayDiff(d, cal)
+                if (age in 0 until days) out[days - 1 - age] += JSONObject(c.getString(1)).optInt("amountCents")
+            }
+        }
+        return out
+    }
+
+    private fun dayDiff(a: java.util.Calendar, b: java.util.Calendar): Int {
+        fun days(c: java.util.Calendar) = c.get(java.util.Calendar.YEAR) * 400 + c.get(java.util.Calendar.DAY_OF_YEAR)
+        return days(b) - days(a)
     }
 
     data class Totals(val earnedCents: Int, val spentCents: Int, val km: Double)
+    data class Stats(
+        val earnedCents: Int, val spentCents: Int, val km: Double,
+        val hours: Double, val tipCents: Int, val jobs: Int,
+    )
 }

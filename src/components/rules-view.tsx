@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardBody, Button, Badge, EmptyState, Field, Input, Select } from "@/components/ui/primitives";
+import { Card, CardBody, Button, Badge, EmptyState, Field, Input, Select, Switch } from "@/components/ui/primitives";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/page-header";
 import { formatMoney } from "@/lib/units";
@@ -165,14 +165,8 @@ export function RulesView({
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => toggle(r)}
-                      role="switch" aria-checked={r.enabled} aria-label={`Toggle ${r.name}`}
-                      className={`w-9 h-5 rounded-full transition-colors relative ${r.enabled ? "bg-accent" : "bg-border-strong"}`}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${r.enabled ? "left-4.5 left-[18px]" : "left-0.5"}`} />
-                    </button>
+                  <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                    <Switch checked={r.enabled} onChange={() => toggle(r)} label={`Toggle ${r.name}`} />
                     <button onClick={() => remove(r.id)} aria-label="Delete rule" className="text-faint hover:text-negative p-1.5"><Trash2 size={15} /></button>
                   </div>
                 </div>

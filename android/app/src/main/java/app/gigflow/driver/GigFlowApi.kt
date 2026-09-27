@@ -49,6 +49,19 @@ object GigFlowApi {
         request("PATCH", baseUrl, token, "/api/mobile/records", body) { ok -> onDone(ok) }
     }
 
+    /** Create/update a schedule entry (idempotent on clientId). */
+    fun pushSchedule(baseUrl: String, token: String, payload: JSONObject, onDone: (Boolean) -> Unit = {}) {
+        if (!configured(baseUrl, token)) { onDone(false); return }
+        post(baseUrl, token, "/api/mobile/schedule", payload) { ok -> onDone(ok) }
+    }
+
+    /** Delete a schedule entry by clientId. */
+    fun deleteSchedule(baseUrl: String, token: String, clientId: String, onDone: (Boolean) -> Unit = {}) {
+        if (!configured(baseUrl, token)) { onDone(false); return }
+        request("DELETE", baseUrl, token, "/api/mobile/schedule",
+            JSONObject().put("clientId", clientId)) { ok -> onDone(ok) }
+    }
+
     /** Delete a pushed record by clientId. */
     fun deleteRecord(baseUrl: String, token: String, type: String, clientId: String, onDone: (Boolean) -> Unit = {}) {
         if (!configured(baseUrl, token)) { onDone(false); return }

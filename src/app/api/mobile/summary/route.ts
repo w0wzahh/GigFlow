@@ -46,6 +46,30 @@ export const GET = withErrors(async (req) => {
       distanceKm: d.week.distanceKm,
       perHourCents: d.week.perHourCents,
     },
+    month: {
+      grossCents: d.month.grossCents,
+      netCents: d.month.netCents,
+      expensesCents: d.month.expensesCents,
+      hours: d.month.hours,
+      distanceKm: d.month.distanceKm,
+      perHourCents: d.month.perHourCents,
+    },
+    prevWeek: d.prevWeek ? {
+      grossCents: d.prevWeek.grossCents,
+      netCents: d.prevWeek.netCents,
+      hours: d.prevWeek.hours,
+    } : null,
+    byPlatform: d.byPlatform.slice(0, 5).map((p) => ({
+      name: p.name,
+      color: p.color,
+      grossCents: p.grossCents,
+      jobs: p.jobs,
+    })),
+    goals: d.goals.map((g) => ({
+      name: g.name, period: g.period,
+      targetCents: g.targetCents, progressCents: g.progressCents,
+      progressPct: Math.round(g.progressPct),
+    })),
     series: d.series.slice(-7).map((p) => ({
       date: p.date,
       grossCents: p.grossCents,

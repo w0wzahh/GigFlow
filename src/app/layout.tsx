@@ -16,10 +16,16 @@ export const metadata: Metadata = {
   title: { default: "GigFlow — Your gig work. One flow.", template: "%s · GigFlow" },
   description:
     "GigFlow brings rideshare and delivery work into one workspace: earnings, expenses, mileage, offer analysis, and performance analytics.",
+  appleWebApp: {
+    capable: true,
+    title: "GigFlow",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport = {
   themeColor: "#0B8A80",
+  viewportFit: "cover" as const,
 };
 
 const themeScript = `(function(){try{var t=localStorage.getItem('gf-theme');var d=t==='dark'||(!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()`;

@@ -29,6 +29,8 @@ class MainActivity : Activity() {
     private lateinit var dashboard: DashboardScreen
     private lateinit var offers: OffersScreen
     private lateinit var track: TrackScreen
+    private lateinit var stats: StatsScreen
+    private lateinit var plan: PlanScreen
     private lateinit var assist: AssistScreen
 
     private lateinit var content: FrameLayout
@@ -44,6 +46,8 @@ class MainActivity : Activity() {
         dashboard = DashboardScreen(this, p, db, settings)
         offers = OffersScreen(this, p)
         track = TrackScreen(this, p, db, settings)
+        stats = StatsScreen(this, p, db, settings)
+        plan = PlanScreen(this, p, db, settings)
         assist = AssistScreen(this, p, settings, db)
 
         content = FrameLayout(this)
@@ -52,6 +56,8 @@ class MainActivity : Activity() {
             TabBar.Tab("house", "Home"),
             TabBar.Tab("tag", "Offers"),
             TabBar.Tab("plus.circle", "Track"),
+            TabBar.Tab("chart.bar", "Stats"),
+            TabBar.Tab("calendar", "Plan"),
             TabBar.Tab("slider", "Assist"),
         ))
         tabBar.onSelect = { show(it) }
@@ -100,6 +106,8 @@ class MainActivity : Activity() {
             0 -> dashboard.screen
             1 -> offers.screen
             2 -> track.screen
+            3 -> stats.screen
+            4 -> plan.screen
             else -> assist.screen
         }
         if (target.parent == content) return
@@ -118,6 +126,8 @@ class MainActivity : Activity() {
             0 -> dashboard.refresh()
             1 -> offers.refresh()
             2 -> track.refresh()
+            3 -> stats.refresh()
+            4 -> plan.refresh()
             else -> assist.refresh()
         }
     }

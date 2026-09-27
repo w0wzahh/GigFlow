@@ -323,6 +323,46 @@ object Sections {
     }
 }
 
+/** Minimal bar chart — iOS-tinted bars with rounded tops. */
+class WeekBars(
+    ctx: Context, private val p: Palette,
+    private val vals: FloatArray, private val labels: Array<String>,
+) : View(ctx) {
+    private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.tint }
+    private val ghostPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.fill }
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = p.label2; textSize = Ios.dp(ctx, 10f).toFloat(); textAlign = Paint.Align.CENTER
+    }
+    override fun onDraw(c: Canvas) {
+        val n = vals.size
+        val slot = width / n.toFloat()
+        val bw = slot * 0.42f
+        val max = (vals.maxOrNull() ?: 1f).coerceAtLeast(1f)
+        val labelH = height * 0.2f
+        val chartH = height - labelH
+        for (i in 0 until n) {
+            val cx = slot * i + slot / 2
+            val h = if (vals[i] <= 0) dp(context, 4f).toFloat() else (vals[i] / max) * (chartH - dp(context, 4f)) + dp(context, 4f)
+            val paint = if (vals[i] <= 0) ghostPaint else barPaint
+            c.drawRoundRect(RectF(cx - bw / 2, chartH - h, cx + bw / 2, chartH), bw / 2, bw / 2, paint)
+            c.drawText(labels[i], cx, height - dp(context, 2f).toFloat(), textPaint)
+        }
+    }
+}
+
+/** Thin iOS progress bar — track + fill, animated width. */
+class ProgressBar(ctx: Context, private val p: Palette, private var pct: Int) : View(ctx) {
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.fill }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.tint }
+    fun set(v: Int) { pct = v; invalidate() }
+    override fun onDraw(c: Canvas) {
+        val r = height / 2f
+        c.drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), r, r, track)
+        val w = width * pct.coerceIn(0, 100) / 100f
+        if (w > 0) c.drawRoundRect(RectF(0f, 0f, maxOf(w, height.toFloat()), height.toFloat()), r, r, fill)
+    }
+}
+
 /** iOS filled button — tint, spring press. */
 fun iosButton(ctx: Context, p: Palette, label: String, tint: Int? = null): Button {
     return Button(ctx).apply {

@@ -173,6 +173,33 @@ export function Progress({ value, className }: { value: number; className?: stri
   );
 }
 
+/* ---------- Switch (iOS-style toggle) ---------- */
+
+export function Switch({ checked, onChange, label }: {
+  checked: boolean; onChange: (v: boolean) => void; label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch" aria-checked={checked} aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative inline-flex h-[26px] w-[46px] shrink-0 items-center rounded-full transition-colors duration-200",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+        checked ? "bg-accent" : "bg-border-strong",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute left-[2px] h-[22px] w-[22px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]",
+          "transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          checked && "translate-x-[20px]",
+        )}
+      />
+    </button>
+  );
+}
+
 /* ---------- Skeleton ---------- */
 
 export function Skeleton({ className }: { className?: string }) {

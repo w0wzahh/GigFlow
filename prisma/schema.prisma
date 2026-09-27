@@ -391,6 +391,7 @@ model ScheduleEntry {
   zone        String?
   platformIds String?  // JSON array of platform ids
   targetCents Int?
+  importKey   String?  // companion:<clientId> for idempotent mobile sync
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

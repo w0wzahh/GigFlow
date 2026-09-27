@@ -23,6 +23,8 @@ object Icons {
         "chevron.right" to R.drawable.ic_chevron_right,
         "checkmark" to R.drawable.ic_check,
         "grid" to R.drawable.ic_apps,
+        "chart.bar" to R.drawable.ic_chart,
+        "calendar" to R.drawable.ic_calendar,
         "heart" to R.drawable.ic_heart,
         "link" to R.drawable.ic_link,
         "trash" to R.drawable.ic_trash,

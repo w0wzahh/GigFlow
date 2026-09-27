@@ -34,6 +34,8 @@ class DashboardScreen(
         c.addView(weekChartCard())
         c.addView(Sections.header(ctx, p, "Assistant"))
         c.addView(assistantCard())
+        goalsCard()?.let { c.addView(Sections.header(ctx, p, "Goals")); c.addView(it) }
+        insightsCard()?.let { c.addView(Sections.header(ctx, p, "Insights")); c.addView(it) }
         c.addView(Sections.header(ctx, p, "Recent activity"))
         c.addView(todayRecordsCard())
         c.addView(gap(24f))
@@ -194,6 +196,54 @@ class DashboardScreen(
         return card
     }
 
+    /** Goal progress rows — mirrors the web goals panel. */
+    private fun goalsCard(): View? {
+        val goals = summary?.optJSONArray("goals") ?: return null
+        if (goals.length() == 0) return null
+        val card = Sections.card(ctx, p)
+        for (i in 0 until goals.length()) {
+            val g = goals.getJSONObject(i)
+            if (i > 0) card.addView(Sections.separator(ctx, p))
+            card.addView(LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(ctx, 16f), dp(ctx, 12f), dp(ctx, 16f), dp(ctx, 12f))
+                addView(LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(TextView(ctx).apply {
+                        text = g.optString("name")
+                        textSize = Ios.T_SUBHEAD; setTextColor(p.label)
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    })
+                    addView(TextView(ctx).apply {
+                        text = "${Ios.money(g.optInt("progressCents"))} / ${Ios.money(g.optInt("targetCents"))}"
+                        textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
+                    })
+                })
+                addView(ProgressBar(ctx, p, g.optInt("progressPct")).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 6f),
+                    ).apply { topMargin = dp(ctx, 8f) }
+                })
+            })
+        }
+        return card
+    }
+
+    /** Insight strings computed on the server — shown when synced. */
+    private fun insightsCard(): View? {
+        val arr = summary?.optJSONArray("insights") ?: return null
+        if (arr.length() == 0) return null
+        val card = Sections.card(ctx, p)
+        for (i in 0 until arr.length()) {
+            if (i > 0) card.addView(Sections.separator(ctx, p))
+            card.addView(Sections.row(ctx, p,
+                title = arr.getString(i),
+                iconGlyph = "bolt", iconTint = p.orange,
+            ))
+        }
+        return card
+    }
+
     private fun todayRecordsCard(): View {
         val card = Sections.card(ctx, p)
         val recent = db.all(5)
@@ -231,28 +281,4 @@ class DashboardScreen(
         "%.1f km".format(km) else "%.1f mi".format(km * 0.621371)
 
     private data class Quad(val a: String, val b: Int, val c: String, val d: String)
-
-    /** Minimal 7-bar chart, iOS-tinted, rounded tops. */
-    private class WeekBars(ctx: Context, private val p: Palette, private val vals: FloatArray, private val labels: Array<String>) : View(ctx) {
-        private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.tint }
-        private val ghostPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = p.fill }
-        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = p.label2; textSize = Ios.dp(ctx, 10f).toFloat(); textAlign = Paint.Align.CENTER
-        }
-        override fun onDraw(c: Canvas) {
-            val n = vals.size
-            val slot = width / n.toFloat()
-            val bw = slot * 0.42f
-            val max = (vals.maxOrNull() ?: 1f).coerceAtLeast(1f)
-            val labelH = height * 0.2f
-            val chartH = height - labelH
-            for (i in 0 until n) {
-                val cx = slot * i + slot / 2
-                val h = if (vals[i] <= 0) dp(context, 4f).toFloat() else (vals[i] / max) * (chartH - dp(context, 4f)) + dp(context, 4f)
-                val paint = if (vals[i] <= 0) ghostPaint else barPaint
-                c.drawRoundRect(RectF(cx - bw / 2, chartH - h, cx + bw / 2, chartH), bw / 2, bw / 2, paint)
-                c.drawText(labels[i], cx, height - dp(context, 2f).toFloat(), textPaint)
-            }
-        }
-    }
 }

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardBody, CardHeader, Field, Input, Select, Badge } from "@/components/ui/primitives";
+import { Button, Card, CardBody, CardHeader, Field, Input, Select, Badge, Switch } from "@/components/ui/primitives";
 import { Modal } from "@/components/ui/modal";
 import { api, ApiClientError } from "@/lib/client";
 import { formatDateTime, formatMoney } from "@/lib/units";
@@ -323,12 +323,7 @@ export function NotificationPrefs({ prefs }: { prefs: Record<string, boolean> })
             return (
               <li key={t} className="px-4 sm:px-5 py-3 flex items-center justify-between">
                 <span className="text-sm">{label}</span>
-                <button
-                  role="switch" aria-checked={on} aria-label={label} onClick={() => toggle(t)}
-                  className={`w-9 h-5 rounded-full transition-colors relative ${on ? "bg-accent" : "bg-border-strong"}`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
-                </button>
+                <Switch checked={on} onChange={() => toggle(t)} label={label} />
               </li>
             );
           })}
