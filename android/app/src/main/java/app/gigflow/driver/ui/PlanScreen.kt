@@ -88,6 +88,19 @@ class PlanScreen(
         map.minZoomLevel = 4.0
         map.overlays.add(HeatOverlay(pts, p.tint))
 
+        // The map lives inside the screen's ScrollView — claim drags/pinches
+        // so panning and pinch-zoom don't scroll the page instead.
+        map.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN ->
+                    v.parent.requestDisallowInterceptTouchEvent(true)
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL ->
+                    v.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            false // let the map handle the gesture itself
+        }
+
         // Center/zoom to cover all points.
         val lats = pts.map { it.lat }; val lngs = pts.map { it.lng }
         val box = BoundingBox(

@@ -58,8 +58,6 @@ class TrackScreen(
         val running = MileageTracker.running
         val km = MileageTracker.kmSoFar
         shiftCard.addView(Sections.row(ctx, p,
-            iconGlyph = "gauge",
-            iconTint = if (running) 0xFF30D158.toInt() else p.tint,
             title = if (running) "Shift in progress" else "Automatic mileage",
             subtitle = when {
                 running -> "${distText(km)} tracked · keep driving"
@@ -90,9 +88,8 @@ class TrackScreen(
                 } else {
                     ctx.startForegroundService(MileageTracker.startIntent(ctx))
                 }
-                refresh()
-                // The service flips `running` asynchronously — repaint once
-                // it's had a beat to start/stop.
+                // The service flips `running` asynchronously — don't repaint
+                // now or the button redraws stale; refresh once it has started.
                 shiftCard.postDelayed({ refresh() }, 700)
             }
         })
