@@ -165,7 +165,7 @@ class AssistScreen(
         val card = Sections.card(ctx, p)
         card.addView(Sections.row(ctx, p,
             title = "Watched apps",
-            value = "6 driver apps",
+            value = "${ctx.resources.getStringArray(app.gigflow.driver.R.array.watched_packages).size} driver apps",
             iconGlyph = "grid", iconTint = p.tint,
             chevron = true,
         ) { showWatchedApps() })
@@ -242,6 +242,8 @@ class AssistScreen(
             "Instacart Shopper" to "com.instacart.shopper",
             "Amazon Flex" to "com.amazon.rabbit",
             "Spark Driver" to "com.walmart.driver.spark",
+            "Wolt Courier Partner" to "com.wolt.courierapp",
+            "foodora rider" to "com.logistics.rider.foodora",
         )
         val col = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL

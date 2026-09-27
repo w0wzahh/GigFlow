@@ -29,7 +29,9 @@ class DashboardScreen(
     private var summary: JSONObject? = null
     private var period = 0 // 0 week, 1 month
 
-    fun refresh() {
+    private var lastSummaryFetch = 0L
+
+    fun refresh(animate: Boolean = true, fetch: Boolean = true) {
         screen.column.removeAllViews()
         val c = screen.column
 
@@ -39,13 +41,18 @@ class DashboardScreen(
         c.addView(LinearLayout(ctx).apply {
             setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), dp(ctx, 10f))
             addView(IosSegmented(ctx, p, listOf("This week", "This month"), initial = period).apply {
-                onSelected = { period = it; refresh() }
+                // Silent rebuild — replaying animateIn() here made a simple
+                // period toggle look like a full page refresh.
+                onSelected = { period = it; refresh(animate = false) }
             }, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         })
         c.addView(periodHeroCard())
+        c.addView(gap(10f))
         c.addView(gridCard())
-        platformCard()?.let { c.addView(Sections.header(ctx, p, "By platform")); c.addView(it) }
+        platformCard()?.let {
+            c.addView(Sections.header(ctx, p, "By platform")); c.addView(it)
+        }
         c.addView(Sections.header(ctx, p, "Daily gross"))
         c.addView(chartCard())
         c.addView(Sections.header(ctx, p, "Assistant"))
@@ -56,13 +63,16 @@ class DashboardScreen(
         c.addView(todayRecordsCard())
         c.addView(gap(24f))
 
-        if (GigFlowApi.configured(settings.syncBaseUrl, settings.syncToken)) {
+        val now = System.currentTimeMillis()
+        if (fetch && now - lastSummaryFetch > 30_000 &&
+            GigFlowApi.configured(settings.syncBaseUrl, settings.syncToken)) {
+            lastSummaryFetch = now
             GigFlowApi.fetchSummary(settings.syncBaseUrl, settings.syncToken) { s ->
                 summary = s
-                if (s != null) screen.post { refresh() }
+                if (s != null) screen.post { refresh(animate = false, fetch = false) }
             }
         }
-        screen.animateIn()
+        if (animate) screen.animateIn()
     }
 
     private fun greeting(): View = TextView(ctx).apply {

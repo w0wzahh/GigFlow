@@ -103,6 +103,26 @@ export const PLATFORM_CATALOG: PlatformSeed[] = [
     color: "#0071ce",
   },
   {
+    key: "wolt",
+    name: "Wolt",
+    category: "DELIVERY",
+    status: "MANUAL",
+    statusNote:
+      "No public courier API. Track earnings manually, import a CSV export, or use the Android companion's on-device offer reading.",
+    color: "#009de0",
+    website: "https://wolt.com",
+  },
+  {
+    key: "foodora",
+    name: "foodora",
+    category: "DELIVERY",
+    status: "MANUAL",
+    statusNote:
+      "No public rider API. Track earnings manually, import a CSV export, or use the Android companion's on-device offer reading.",
+    color: "#d60270",
+    website: "https://www.foodora.com",
+  },
+  {
     key: "other",
     name: "Other Platform",
     category: "OTHER",

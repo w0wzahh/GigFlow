@@ -134,6 +134,8 @@ object GigFlowApi {
         "instacart" in pkg -> "instacart"
         "amazon" in pkg || "rabbit" in pkg -> "amazon-flex"
         "spark" in pkg || "walmart" in pkg -> "spark"
+        "wolt" in pkg -> "wolt"
+        "foodora" in pkg || "logistics.rider" in pkg -> "foodora"
         else -> "other"
     }
 }
