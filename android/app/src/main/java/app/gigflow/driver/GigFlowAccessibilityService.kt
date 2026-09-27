@@ -75,7 +75,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
         // auto-shift tracker before anything else.
         onDriverAppSeen(now)
 
-        val prefs = settings.rules()
+        val prefs = settings.rulesFor(pkg) // per-app overrides over globals
         if (!prefs.enabled) return
         if (now - lastScanAt < 350) return // throttle contentChanged storms
         lastScanAt = now
@@ -117,6 +117,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             action = "shown",
             lat = loc?.first,
             lng = loc?.second,
+            reservation = offer.isReservation,
         ))
         GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, scored, "shown")
 
@@ -134,7 +135,8 @@ class GigFlowAccessibilityService : AccessibilityService() {
         }
 
         val autoAcceptDelay =
-            if (prefs.autoAccept && scored.verdict == Verdict.GOOD && offer.acceptNode != null)
+            if (prefs.autoAccept && scored.verdict == Verdict.GOOD && offer.acceptNode != null &&
+                (settings.autoAcceptReservations || !offer.isReservation))
                 settings.autoAcceptDelaySec else 0
 
         overlay.show(scored, autoAcceptDelay) { action ->
@@ -273,6 +275,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             perMileCents = s.perMileCents, perHourCents = s.perHourCents,
             verdict = s.verdict.name, action = action,
             lat = null, lng = null,
+            reservation = o.isReservation,
         ))
         GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, s, action)
     }

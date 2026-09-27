@@ -2,6 +2,7 @@ package app.gigflow.driver
 
 import android.content.Context
 import android.content.SharedPreferences
+import org.json.JSONObject
 
 class SettingsRepository(context: Context) {
 
@@ -74,6 +75,44 @@ class SettingsRepository(context: Context) {
     var autoLogEarnings: Boolean
         get() = prefs.getBoolean("auto_log_earnings", true)
         set(v) = prefs.edit().putBoolean("auto_log_earnings", v).apply()
+
+    /** Whether the auto-accept countdown also fires on scheduled/reserved work. */
+    var autoAcceptReservations: Boolean
+        get() = prefs.getBoolean("auto_accept_reservations", true)
+        set(v) = prefs.edit().putBoolean("auto_accept_reservations", v).apply()
+
+    // ---- Per-app rule overrides (Mystro's per-service filters) ----
+
+    private fun overrides(): JSONObject =
+        JSONObject(prefs.getString("platform_rules", "{}") ?: "{}")
+
+    /** Stored override object for a package, or null to inherit globals. */
+    fun platformOverride(pkg: String): JSONObject? =
+        overrides().optJSONObject(pkg)
+
+    fun setPlatformOverride(pkg: String, o: JSONObject) {
+        prefs.edit().putString("platform_rules",
+            overrides().put(pkg, o).toString()).apply()
+    }
+
+    fun clearPlatformOverride(pkg: String) {
+        prefs.edit().putString("platform_rules",
+            overrides().remove(pkg).toString()).apply()
+    }
+
+    /** Global rules merged with the package's overrides, if any exist. */
+    fun rulesFor(pkg: String): RulePrefs {
+        val base = rules()
+        val o = platformOverride(pkg) ?: return base
+        return base.copy(
+            autoAccept = o.optBoolean("autoAccept", base.autoAccept),
+            autoDecline = o.optBoolean("autoDecline", base.autoDecline),
+            minPerMileCents = if (o.has("minPerMileCents")) o.getInt("minPerMileCents") else base.minPerMileCents,
+            minPerHourCents = if (o.has("minPerHourCents")) o.getInt("minPerHourCents") else base.minPerHourCents,
+            minPayoutCents = if (o.has("minPayoutCents")) o.getInt("minPayoutCents") else base.minPayoutCents,
+            maxDistanceKm = if (o.has("maxDistanceKm")) o.getDouble("maxDistanceKm") else base.maxDistanceKm,
+        )
+    }
 
     /** GigFlow web app base URL, e.g. https://app.gigflow.example — empty = off. */
     var syncBaseUrl: String

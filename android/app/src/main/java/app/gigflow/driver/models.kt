@@ -20,6 +20,9 @@ data class DetectedOffer(
     val acceptNode: NodeRef?,
     val declineNode: NodeRef?,
     val rawTexts: List<String>,
+    /** True for scheduled/reservation work (e.g. "Reserved", "Scheduled")
+     * rather than a live on-demand ping. */
+    val isReservation: Boolean = false,
 ) {
     /** Stable-ish key for dedupe within a short window. */
     val fingerprint: String

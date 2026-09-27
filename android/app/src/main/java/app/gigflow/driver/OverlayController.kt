@@ -53,7 +53,8 @@ class OverlayController(private val service: AccessibilityService) {
         }
 
         val title = TextView(service).apply {
-            text = "$label  ·  ${money(o.payoutCents)}"
+            text = (if (o.isReservation) "RESERVED · " else "") +
+                "$label  ·  ${money(o.payoutCents)}"
             setTextColor(fgColor)
             textSize = 15f
             setTypeface(typeface, android.graphics.Typeface.BOLD)

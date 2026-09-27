@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import org.json.JSONObject
 import app.gigflow.driver.*
 import app.gigflow.driver.ui.Ios.Palette
 import app.gigflow.driver.ui.Ios.dp
@@ -31,6 +32,13 @@ class AssistScreen(
         c.addView(automationCard())
         c.addView(Sections.header(ctx, p, "Offer rules"))
         c.addView(rulesCard())
+        c.addView(Sections.header(ctx, p, "Per-app rules"))
+        c.addView(perAppCard())
+        c.addView(TextView(ctx).apply {
+            text = "Apps without an override use the global rules above."
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label3)
+            setPadding(dp(ctx, 20f), dp(ctx, 6f), dp(ctx, 16f), 0)
+        })
         c.addView(Sections.header(ctx, p, "Preferences"))
         c.addView(preferencesCard())
         c.addView(Sections.header(ctx, p, "GigFlow sync"))
@@ -264,18 +272,113 @@ class AssistScreen(
         }
     }
 
+    private val watchedApps = listOf(
+        "Uber Driver" to "com.uber.driver",
+        "Lyft Driver" to "com.lyft.driver",
+        "Dasher" to "com.doordash.driverapp",
+        "Instacart Shopper" to "com.instacart.shopper",
+        "Amazon Flex" to "com.amazon.rabbit",
+        "Spark Driver" to "com.walmart.driver.spark",
+        "Wolt Courier Partner" to "com.wolt.courierapp",
+        "foodora rider" to "com.logistics.rider.foodora",
+    )
+
+    /** Mystro-style per-service filters — one row per watched app. */
+    private fun perAppCard(): View {
+        val card = Sections.card(ctx, p)
+        watchedApps.forEachIndexed { i, (name, pkg) ->
+            if (i > 0) card.addView(Sections.separator(ctx, p))
+            val overridden = settings.platformOverride(pkg) != null
+            card.addView(Sections.row(ctx, p,
+                title = name,
+                value = if (overridden) "Custom" else null,
+                iconGlyph = "slider", iconTint = if (overridden) p.orange else p.gray,
+                chevron = true,
+            ) { editAppRules(name, pkg) })
+        }
+        return card
+    }
+
+    /** Override sheet: same rule fields, scoped to one driver app. */
+    private fun editAppRules(name: String, pkg: String) {
+        val sheet = IosSheet(ctx, p)
+        val isKm = settings.distanceUnit == "KM"
+        val eff = settings.rulesFor(pkg) // effective rules: override ?? global
+
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 4f), dp(ctx, 20f), dp(ctx, 16f))
+            addView(TextView(ctx).apply {
+                text = name
+                textSize = Ios.T_HEADLINE; setTypeface(typeface, Typeface.BOLD); setTextColor(p.label)
+            })
+            addView(TextView(ctx).apply {
+                text = "Overrides the global rules for offers from this app."
+                textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
+                setPadding(0, dp(ctx, 2f), 0, dp(ctx, 12f))
+            })
+        }
+
+        val (rA, swA) = Sections.switchRow(ctx, p, "Auto-accept good offers",
+            "Countdown applies", eff.autoAccept) { }
+        val (rD, swD) = Sections.switchRow(ctx, p, "Auto-decline bad offers",
+            "Immediate", eff.autoDecline) { }
+        col.addView(rA); col.addView(Sections.separator(ctx, p)); col.addView(rD)
+        col.addView(Sections.separator(ctx, p))
+
+        val (r1, mile) = Sections.formField(ctx, p,
+            "Min $ / ${if (isKm) "km" else "mile"}",
+            "%.2f".format(if (isKm) eff.minPerMileCents / 1.609344 / 100.0 else eff.minPerMileCents / 100.0))
+        val (r2, hour) = Sections.formField(ctx, p, "Min $ / hour", "%.2f".format(eff.minPerHourCents / 100.0))
+        val (r3, payout) = Sections.formField(ctx, p, "Min payout", "%.2f".format(eff.minPayoutCents / 100.0), hint = "$")
+        val (r4, dist) = Sections.formField(ctx, p, "Max distance (${if (isKm) "km" else "mi"})",
+            "%.1f".format(if (isKm) eff.maxDistanceKm else eff.maxDistanceKm * 0.621371))
+        col.addView(r1); col.addView(Sections.separator(ctx, p))
+        col.addView(r2); col.addView(Sections.separator(ctx, p))
+        col.addView(r3); col.addView(Sections.separator(ctx, p))
+        col.addView(r4)
+        sheet.add(col)
+
+        val save = iosButton(ctx, p, "Save overrides")
+        val reset = iosButton(ctx, p, "Reset to global rules", p.fill)
+        reset.setTextColor(p.label)
+        sheet.add(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), 0)
+            addView(save); addView(reset)
+            (reset.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(ctx, 8f)
+        })
+
+        save.setOnClickListener {
+            val dpm = mile.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min $/distance")
+            val dph = hour.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min $/hour")
+            val pay = payout.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min payout")
+            val d = dist.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Max distance")
+            settings.setPlatformOverride(pkg, JSONObject()
+                .put("autoAccept", swA.isChecked)
+                .put("autoDecline", swD.isChecked)
+                .put("minPerMileCents", ((if (isKm) dpm * 1.609344 else dpm) * 100).toInt())
+                .put("minPerHourCents", (dph * 100).toInt())
+                .put("minPayoutCents", (pay * 100).toInt())
+                .put("maxDistanceKm", if (isKm) d else d * 1.609344)
+            )
+            Toast.makeText(ctx, "$name rules saved", Toast.LENGTH_SHORT).show()
+            sheet.dismiss(); refresh()
+        }
+        reset.setOnClickListener {
+            settings.clearPlatformOverride(pkg)
+            sheet.dismiss(); refresh()
+        }
+        sheet.show()
+    }
+
+    private fun bad(msg: String) {
+        Toast.makeText(ctx, "$msg must be a number", Toast.LENGTH_SHORT).show()
+    }
+
     private fun showWatchedApps() {
         val sheet = IosSheet(ctx, p)
-        val names = listOf(
-            "Uber Driver" to "com.uber.driver",
-            "Lyft Driver" to "com.lyft.driver",
-            "Dasher" to "com.doordash.driverapp",
-            "Instacart Shopper" to "com.instacart.shopper",
-            "Amazon Flex" to "com.amazon.rabbit",
-            "Spark Driver" to "com.walmart.driver.spark",
-            "Wolt Courier Partner" to "com.wolt.courierapp",
-            "foodora rider" to "com.logistics.rider.foodora",
-        )
+        val names = watchedApps
         val col = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(ctx, 20f), dp(ctx, 4f), dp(ctx, 20f), dp(ctx, 12f))

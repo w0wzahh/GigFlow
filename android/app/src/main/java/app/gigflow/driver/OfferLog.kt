@@ -22,6 +22,7 @@ object OfferLog {
         val action: String, // "shown" | "auto_accept" | "auto_decline" | "manual_accept" | "manual_decline"
         val lat: Double? = null,
         val lng: Double? = null,
+        val reservation: Boolean = false,
     )
 
     fun add(context: Context, e: Entry) {
@@ -39,6 +40,7 @@ object OfferLog {
         e.perHourCents?.let { o.put("perHour", it) }
         e.lat?.let { o.put("lat", it) }
         e.lng?.let { o.put("lng", it) }
+        if (e.reservation) o.put("reservation", true)
         val next = JSONArray()
         next.put(o)
         for (i in 0 until minOf(arr.length(), MAX - 1)) next.put(arr.get(i))
@@ -62,6 +64,7 @@ object OfferLog {
                 action = o.getString("action"),
                 lat = if (o.has("lat")) o.getDouble("lat") else null,
                 lng = if (o.has("lng")) o.getDouble("lng") else null,
+                reservation = o.optBoolean("reservation"),
             )
         }
     }

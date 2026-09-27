@@ -23,6 +23,7 @@ object OfferParser {
     private val ACCEPT_WORDS = Regex("""accept|confirm|match me|claim|grab it|start delivery""", RegexOption.IGNORE_CASE)
     private val DECLINE_WORDS = Regex("""decline|pass|reject|no thanks|skip""", RegexOption.IGNORE_CASE)
     private val TIMER_HINTS = Regex("""^\d{1,2}$|seconds""") // countdown numbers — ignore for duration
+    private val RESERVATION = Regex("""reserv|scheduled""", RegexOption.IGNORE_CASE)
 
     data class FlatNode(
         val text: String,
@@ -111,6 +112,7 @@ object OfferParser {
             acceptNode = accept,
             declineNode = decline,
             rawTexts = texts,
+            isReservation = texts.any { RESERVATION.containsMatchIn(it) },
         )
     }
 }

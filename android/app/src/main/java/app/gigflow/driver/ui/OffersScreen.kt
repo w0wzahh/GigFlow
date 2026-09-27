@@ -82,7 +82,8 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
         val app = e.pkg.substringAfterLast('.')
             .replace("driverapp", "Dasher").replaceFirstChar { it.uppercase() }
         val stats = buildString {
-            e.distanceKm?.let { append(distText(it)) }
+            if (e.reservation) append("Reserved")
+            e.distanceKm?.let { if (isNotEmpty()) append(" · "); append(distText(it)) }
             e.durationMin?.let { if (isNotEmpty()) append(" · "); append("${it.toInt()} min") }
             e.perMileCents?.let { if (isNotEmpty()) append(" · "); append(perDistText(it)) }
             if (e.action != "shown") {
@@ -164,6 +165,7 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
             setPadding(0, dp(ctx, 4f), 0, dp(ctx, 14f))
         })
         val metrics = listOfNotNull(
+            if (e.reservation) "Type" to "Reservation" else null,
             e.distanceKm?.let { "Distance" to distText(it) },
             e.durationMin?.let { "Duration" to "${it.toInt()} min" },
             e.perMileCents?.let { "Per ${if (isKm()) "kilometre" else "mile"}" to perDistText(it).substringBefore('/') },
