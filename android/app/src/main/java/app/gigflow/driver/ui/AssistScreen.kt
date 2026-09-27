@@ -210,6 +210,18 @@ class AssistScreen(
         ) { showWatchedApps() })
         card.addView(Sections.separator(ctx, p))
         card.addView(Sections.row(ctx, p,
+            title = "Privacy policy",
+            iconGlyph = "doc", iconTint = p.tint,
+            chevron = true,
+        ) { openUrl("https://github.com/w0wzahh/GigFlow/blob/master/docs/legal/privacy-policy.md") })
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
+            title = "Terms of service",
+            iconGlyph = "doc", iconTint = p.tint,
+            chevron = true,
+        ) { openUrl("https://github.com/w0wzahh/GigFlow/blob/master/docs/legal/terms-of-service.md") })
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
             title = "Version",
             value = try {
                 ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName

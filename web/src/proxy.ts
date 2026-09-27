@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = new Set([
   "/", "/login", "/register", "/forgot-password", "/reset-password",
-  "/verify-email", "/privacy", "/terms",
+  "/verify-email", "/privacy", "/terms", "/cookies",
 ]);
 
 /**

@@ -275,7 +275,7 @@ export default function LandingPage() {
           {[
             { h: "Product", links: [["Features", "#features"], ["Pricing", "#pricing"], ["Platforms", "#platforms"]] },
             { h: "Resources", links: [["Documentation", "/docs"], ["Status", "/status"], ["Contact", "mailto:support@gigflow.app"]] },
-            { h: "Legal", links: [["Privacy", "/privacy"], ["Terms", "/terms"]] },
+            { h: "Legal", links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["Cookies", "/cookies"]] },
           ].map((col) => (
             <div key={col.h}>
               <p className="text-xs font-semibold uppercase tracking-wider text-faint">{col.h}</p>

@@ -6,28 +6,40 @@ export const metadata: Metadata = { title: "Privacy Policy" };
 
 const sections = [
   {
-    h: "What we collect",
-    body: "Account information (name, email, password hash), work data you record (trips, deliveries, earnings, expenses, mileage, offers), vehicles, preferences, goals and rules, and technical session data (IP address, user agent) needed to keep your account secure.",
+    h: "What the web app collects",
+    body: "Account details (name, email, salted password hash) for sign-in; records you enter or import (earnings, expenses, mileage, trips, deliveries, offers, schedules, goals, rules); session data (hashed token, IP, user agent) for security; and your preferences. Optional Gmail receipt sync stores OAuth tokens encrypted (AES-256-GCM), read-only — we never see your Gmail password.",
   },
   {
-    h: "What we don't collect",
-    body: "GigFlow does not continuously track your location. Zones and locations are only stored when you type them into a record. We do not access your platform accounts unless a supported integration is explicitly connected by you.",
+    h: "What the Android companion collects",
+    body: "The companion is local-first. Its accessibility service reads offer cards inside the driver apps you choose — raw screen content is processed on-device and never transmitted; only distilled fields (payout, distance, duration, verdict, action) are kept in a capped local log. GPS breadcrumbs are recorded only while a shift is active and only for the work heatmap; they never leave the device except through sync you configure yourself.",
   },
   {
-    h: "How data is used",
-    body: "Your data powers your dashboard, analytics, goals, rules and exports. It is not sold, rented, or shared with third parties for marketing.",
+    h: "What we never do",
+    body: "No advertising, no analytics SDKs, no tracking pixels, no data sale. No continuous location tracking, no scraping of platform accounts, no access to apps outside the ones you explicitly watch.",
   },
   {
-    h: "Integrations",
-    body: "Where a platform offers an official integration, credentials are encrypted at rest (AES-256-GCM) and never exposed to the browser. Where no API exists, GigFlow uses manual tracking instead — we never scrape or bypass platform protections.",
+    h: "Cookies",
+    body: "One strictly-necessary session cookie (HttpOnly, SameSite=Lax) keeps you signed in — no analytics, advertising or third-party cookies. See the Cookie Policy at /cookies.",
   },
   {
-    h: "Your controls",
-    body: "Export everything as JSON, or delete your entire account — which removes all associated records — from Settings → Data.",
+    h: "Retention and deletion",
+    body: "Data is kept while your account exists. Export everything as JSON or delete your account — removing all records — from Settings → Data. Android local data is removed by clearing app storage or uninstalling.",
   },
   {
-    h: "Contact",
-    body: "Privacy questions: privacy@gigflow.app.",
+    h: "Security",
+    body: "Salted scrypt password hashing, hashed session tokens, per-user scoping on every query, rate-limited auth endpoints, AES-256-GCM for integration credentials. Report vulnerabilities via GitHub Security Advisories on the repository.",
+  },
+  {
+    h: "Your rights",
+    body: "Depending on jurisdiction (GDPR in the EU/UK, CCPA in California) you may have rights to access, correct, export or delete your data. The export and delete tools satisfy most of these directly. Self-hosted deployments: whoever runs the instance is the data controller, not the upstream project.",
+  },
+  {
+    h: "Children",
+    body: "The Service is for adults legally able to perform gig work (18+). We do not knowingly collect data from children.",
+  },
+  {
+    h: "Changes and contact",
+    body: "Material changes are committed to the repository and noted in release notes. Questions or requests: github.com/w0wzahh/GigFlow/issues — include the account email for data requests. Canonical text: docs/legal/privacy-policy.md.",
   },
 ];
 
