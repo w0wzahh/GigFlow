@@ -211,7 +211,9 @@ class AssistScreen(
         card.addView(Sections.separator(ctx, p))
         card.addView(Sections.row(ctx, p,
             title = "Version",
-            value = "0.1.0",
+            value = try {
+                ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName
+            } catch (_: Exception) { "?" },
             iconGlyph = "doc", iconTint = p.gray,
         ))
         c_footer(card, "Everything stays on-device except the fields you sync. GigFlow isn't affiliated with any gig platform.")
