@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { withErrors, ok, errors } from "@/lib/api";
-import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { hashMobileToken } from "@/app/api/account/mobile-token/route";
+import { withErrors, ok } from "@/lib/api";
+import { getMobileUser } from "@/lib/mobile";
 import { computeOfferMetrics, evaluateOffer, parseRuleRow } from "@/lib/rules/engine";
 
 // Payload sent by the Android companion (GigFlowApi.kt). Metric units match
@@ -30,19 +29,7 @@ const offerPush = z.object({
  * Rate limit: 300 pushes / 5 min / IP — a busy shift produces far fewer.
  */
 export const POST = withErrors(async (req) => {
-  const auth = req.headers.get("authorization") ?? "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  if (token.length < 16 || token.length > 128) throw errors.unauthorized();
-
-  const ip = clientIp(req);
-  const rl = rateLimit(`mobile-push:${ip}`, 300, 5 * 60_000);
-  if (!rl.ok) throw errors.tooMany(rl.retryAfterSec);
-
-  const user = await db.user.findFirst({
-    where: { mobileTokenHash: hashMobileToken(token), deletedAt: null },
-    select: { id: true },
-  });
-  if (!user) throw errors.unauthorized();
+  const user = await getMobileUser(req);
 
   const body = offerPush.parse(await req.json());
 

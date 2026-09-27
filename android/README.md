@@ -1,79 +1,82 @@
 # GigFlow Driver — Android companion
 
-A native Android app that scores gig offers **on-device** using Android's
-`AccessibilityService`, the same class of API Mystro-style assistants use.
-No root, no SDK hooks into the driver apps themselves.
+A native Android app in the iOS design language: dashboard, offer feed,
+quick-add tracking, and the offer assistant — all on-device, zero
+third-party dependencies (plain Views, no Compose/Material).
 
-## What it does
+## The app
+
+Four tabs behind a floating frosted tab bar:
+
+- **Home** — today's net/gross/hours/$-per-hour, a 7-day gross bar chart,
+  assistant status, and your recent records. Pulls live aggregates from the
+  web workspace when sync is configured; otherwise computes from on-device
+  records.
+- **Offers** — the assistant's scored-offer feed: verdict pill (Good /
+  Borderline / Skipped), $/mi and $/hr, grouped by day, filterable by a
+  segmented control.
+- **Track** — quick-add earnings, expenses, and mileage in grouped iOS
+  forms. Everything saves to a local SQLite store first (works offline) and
+  pushes to the web app when connected, with `clientId` dedupe so retries
+  never double-count.
+- **Assistant** — accessibility-service status, Monitoring / Auto-accept /
+  Auto-decline switches (both automation switches off by default), offer
+  rules, and web sync settings.
+
+## The assistant (Mystro-style, honest version)
 
 - Watches the offer screens of the driver apps you choose (Uber Driver,
-  Lyft Driver, Dasher, Instacart Shopper, Amazon Flex, Spark).
-- Reads the offer card off the screen: payout, distance, duration, and the
-  accept/decline buttons.
-- Scores the offer against **your thresholds** ($/mile, $/hour, minimum
-  payout, max distance) and shows a floating verdict card:
-  `GOOD OFFER` / `BORDERLINE` / `SKIP IT` with $/mi and $/hr.
-- Optionally taps **Accept** or **Decline** for you — off by default, two
-  separate opt-in switches.
-- Keeps a rolling on-device log of the last 200 offers.
-- Optionally pushes each scored offer to your GigFlow web workspace, so the
-  Offers page and analytics include what the phone saw.
+  Lyft Driver, Dasher, Instacart Shopper, Amazon Flex, Spark) via
+  `AccessibilityService` — scoped by package name, blind to everything else.
+- Reads the offer card off the screen (payout, distance, duration,
+  accept/decline buttons) with text-pattern parsing — layout-independent.
+- Scores against your thresholds and floats a verdict card over the app:
+  `GOOD OFFER` / `BORDERLINE` / `SKIP IT` with $/mi, $/hr, and tap shortcuts.
+- Optionally taps Accept/Decline via `dispatchGesture` — opt-in switches.
+- Pushes each scored offer to `POST /api/mobile/offers` so the web Offers
+  feed sees what the phone saw.
 
 ## Honest limitations
 
-- **Not an official integration.** Uber/Lyft/DoorDash do not publish driver
-  APIs; this reads what's on screen, like every app in this category.
-- **Text-pattern parsing.** Driver apps change their layouts often. If a
-  card can't be parsed, nothing is shown — the app errs toward silence, and
-  never guesses at buttons.
-- **Android only.** iOS does not permit this class of screen-reading.
-- **Automation is opt-in.** Auto-accept/auto-decline only fire when you turn
-  the switches on, and only when the offer's button was found unambiguously.
+- **Not an official integration.** No major platform publishes a driver API;
+  this reads what's on screen, like every app in this category.
+- **Heuristic parsing.** Driver apps change layouts often. If a card can't
+  be parsed, nothing is shown — the app errs toward silence and never
+  guesses at buttons.
+- **Android only.** iOS doesn't permit this class of screen-reading. The
+  web app is the iOS-friendly surface; this app is the Android advantage.
+- **Automation is opt-in** and only fires when the button was found
+  unambiguously.
 - **Policy note.** Google Play restricts accessibility services that aren't
-  primarily accessibility tools; this app is distributed as an APK, not via
-  Play. Using third-party assistants may conflict with gig platforms' terms —
-  you are responsible for that choice.
+  primarily accessibility tools; this app is distributed as an APK. Using
+  third-party assistants may conflict with gig platforms' terms — your call.
 
 ## Build
 
-Requires JDK 17+ and the Android SDK (platform 36).
+JDK 17+ and Android SDK platform 36.
 
 ```bash
-# local.properties must point at your SDK:
+# local.properties must point at your SDK (gitignored):
 #   sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
-gradle assembleDebug
-# → app/build/outputs/apk/debug/app-debug.apk
+gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
-
-Install on a phone over USB:
-
-```bash
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
-## Setup on the phone
-
-1. Install the APK and open **GigFlow Driver**.
-2. Tap **Enable in Accessibility settings**, find **GigFlow Offer
-   Assistant**, turn it on.
-3. Set your thresholds and save.
-4. (Optional) leave **Auto-accept** / **Auto-decline** off to just get the
-   score card; turn them on for automation.
 
 ## Connect to the web app
 
-1. In the GigFlow web app: **Settings → Security → Android companion app →
-   Generate token**. Copy it (shown once).
-2. In the phone app: paste the web app URL (e.g. `http://192.168.x.x:3000`
-   on the same LAN, or your deployed URL) and the token → **Save sync**.
+1. GigFlow web → **Settings → Security → Android companion app → Generate
+   token** (shown once, SHA-256 hashed at rest).
+2. App → **Assistant → GigFlow sync**: paste the web URL
+   (`http://<PC-LAN-IP>:3000` on the same Wi-Fi, or your deployed URL) and
+   the token → **Connect**.
 
-Every scored offer then appears in the web app's Offers feed with
-`source: COMPANION`, evaluated against your web-side rules too.
+The token can push offers/records and read dashboard totals — it cannot
+read full history or change account settings. Revoke any time in Settings.
 
 ## Data handling
 
-- Screen content never leaves the phone. Only the distilled fields
-  (payout, distance, duration, verdict, action) are sent when sync is on.
-- The sync token is stored in private app storage and never logged.
-- The token can only *create* offer records — it cannot read your data.
-  Revoke it any time in Settings → Security.
+- Screen content never leaves the phone; only distilled fields (payout,
+  distance, duration, verdict, action) sync.
+- Records save to `gigflow.db` locally first; unsynced rows flush as a
+  batch when connectivity returns.
+- The token lives in private app storage and is never logged.

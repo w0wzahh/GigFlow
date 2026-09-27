@@ -294,6 +294,7 @@ model Expense {
   occurredAt  DateTime
   description String?
   receiptUrl  String?
+  importKey   String?
   source      String   @default("MANUAL")
   createdAt   DateTime @default(now())
 
@@ -302,6 +303,7 @@ model Expense {
 
   @@index([userId, occurredAt])
   @@index([userId, category])
+  @@index([userId, importKey])
 }
 
 // purpose: WORK | PERSONAL | OTHER
@@ -314,6 +316,7 @@ model MileageRecord {
   purpose       String   @default("WORK")
   startLocation String?
   endLocation   String?
+  importKey     String?
   source        String   @default("MANUAL")
   createdAt     DateTime @default(now())
 
@@ -321,6 +324,7 @@ model MileageRecord {
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
+  @@index([userId, importKey])
 }
 
 // period: DAILY | WEEKLY | MONTHLY | CUSTOM

@@ -405,7 +405,7 @@ function MobileTokenCard({ createdAt }: { createdAt: string | null }) {
     <Card>
       <CardHeader
         title="Android companion app"
-        subtitle="Lets the GigFlow Offer Assistant on your phone push scored offers into this workspace."
+        subtitle="Links the GigFlow Driver app on your phone to this workspace — pushes scored offers and records (earnings, expenses, mileage), and reads your dashboard summary."
       />
       <CardBody className="space-y-3">
         {token ? (
@@ -443,7 +443,7 @@ function MobileTokenCard({ createdAt }: { createdAt: string | null }) {
           </div>
         )}
         <p className="text-xs text-faint">
-          Revoking signs the app out immediately. The token can only push offer observations — it cannot read your data or change settings.
+          Revoking signs the app out immediately. The token can create records and read dashboard totals — it cannot read full history or change account settings.
         </p>
         <Msg msg={msg} />
       </CardBody>

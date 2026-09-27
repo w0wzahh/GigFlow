@@ -1,10 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { withAuth, ok, assertSameOrigin } from "@/lib/api";
-
-export function hashMobileToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
+import { hashMobileToken } from "@/lib/mobile";
 
 /**
  * POST — generate a new bearer token for the Android companion app.
