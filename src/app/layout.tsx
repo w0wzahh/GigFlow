@@ -18,6 +18,10 @@ export const metadata: Metadata = {
     "GigFlow brings rideshare and delivery work into one workspace: earnings, expenses, mileage, offer analysis, and performance analytics.",
 };
 
+export const viewport = {
+  themeColor: "#0B8A80",
+};
+
 const themeScript = `(function(){try{var t=localStorage.getItem('gf-theme');var d=t==='dark'||(!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
