@@ -2,7 +2,7 @@
 
 ## Setup
 
-1. `cp .env.example .env` and set `APP_SECRET`.
+1. `cd web`, `cp .env.example .env` and set `APP_SECRET`.
 2. `npm install && npx prisma migrate dev && npm run db:seed`
 3. `npm run dev`
 

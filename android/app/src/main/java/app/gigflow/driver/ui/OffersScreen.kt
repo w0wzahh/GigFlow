@@ -16,11 +16,20 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 /** Offers — the assistant's scored-offer feed with verdict filters. */
-class OffersScreen(ctx: Context, private val p: Palette) {
+class OffersScreen(ctx: Context, private val p: Palette, private val settings: app.gigflow.driver.SettingsRepository) {
 
     val screen = Screen(ctx, p, "Offers")
     private val ctx: Context = ctx
     private var filter = 0 // 0 all, 1 good, 2 meh, 3 bad
+
+    private fun isKm() = settings.distanceUnit == "KM"
+    private fun distText(km: Double) =
+        "%.1f %s".format(if (isKm()) km else km * 0.621371, if (isKm()) "km" else "mi")
+    private fun perDistText(centsPerMile: Int) =
+        "$%.2f/%s".format(
+            (if (isKm()) centsPerMile / 1.609344 else centsPerMile.toDouble()) / 100f,
+            if (isKm()) "km" else "mi",
+        )
 
     fun refresh() {
         screen.column.removeAllViews()
@@ -73,9 +82,9 @@ class OffersScreen(ctx: Context, private val p: Palette) {
         val app = e.pkg.substringAfterLast('.')
             .replace("driverapp", "Dasher").replaceFirstChar { it.uppercase() }
         val stats = buildString {
-            e.distanceKm?.let { append("%.1f mi".format(it * 0.621371)) }
+            e.distanceKm?.let { append(distText(it)) }
             e.durationMin?.let { if (isNotEmpty()) append(" · "); append("${it.toInt()} min") }
-            e.perMileCents?.let { if (isNotEmpty()) append(" · "); append("$%.2f/mi".format(it / 100f)) }
+            e.perMileCents?.let { if (isNotEmpty()) append(" · "); append(perDistText(it)) }
             if (e.action != "shown") {
                 if (isNotEmpty()) append(" · ")
                 append(e.action.replace('_', ' '))
@@ -155,9 +164,9 @@ class OffersScreen(ctx: Context, private val p: Palette) {
             setPadding(0, dp(ctx, 4f), 0, dp(ctx, 14f))
         })
         val metrics = listOfNotNull(
-            e.distanceKm?.let { "Distance" to "%.1f mi".format(it * 0.621371) },
+            e.distanceKm?.let { "Distance" to distText(it) },
             e.durationMin?.let { "Duration" to "${it.toInt()} min" },
-            e.perMileCents?.let { "Per mile" to "$%.2f".format(it / 100f) },
+            e.perMileCents?.let { "Per ${if (isKm()) "kilometre" else "mile"}" to perDistText(it).substringBefore('/') },
             e.perHourCents?.let { "Per hour" to "$%.2f".format(it / 100f) },
             "Action" to (if (e.action == "shown") "Seen only" else e.action.replace('_', ' ')),
         )

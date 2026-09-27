@@ -116,9 +116,9 @@ object GigFlowApi {
                 OutputStreamWriter(conn.outputStream).use { it.write(body.toString()) }
                 val ok = conn.responseCode in 200..299
                 conn.disconnect()
-                done(ok)
+                post { done(ok) }
             } catch (_: Exception) {
-                done(false)
+                post { done(false) }
             }
         }.start()
     }

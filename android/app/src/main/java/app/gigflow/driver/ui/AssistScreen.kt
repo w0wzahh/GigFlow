@@ -102,10 +102,14 @@ class AssistScreen(
 
     private fun rulesCard(): View {
         val card = Sections.card(ctx, p)
-        val (rMile, mile) = Sections.formField(ctx, p, "Min $ / mile", "%.2f".format(settings.minPerMileCents / 100.0))
+        val isKm = settings.distanceUnit == "KM"
+        val (rMile, mile) = Sections.formField(ctx, p,
+            "Min $ / ${if (isKm) "km" else "mile"}",
+            "%.2f".format(if (isKm) settings.minPerMileCents / 1.609344 / 100.0 else settings.minPerMileCents / 100.0))
         val (rHour, hour) = Sections.formField(ctx, p, "Min $ / hour", "%.2f".format(settings.minPerHourCents / 100.0))
         val (rPayout, payout) = Sections.formField(ctx, p, "Min payout", "%.2f".format(settings.minPayoutCents / 100.0), hint = "$")
-        val (rDist, dist) = Sections.formField(ctx, p, "Max distance (mi)", "%.1f".format(settings.maxDistanceKm * 0.621371))
+        val (rDist, dist) = Sections.formField(ctx, p, "Max distance (${if (isKm) "km" else "mi"})",
+            "%.1f".format(if (isKm) settings.maxDistanceKm else settings.maxDistanceKm * 0.621371))
         card.addView(rMile); card.addView(Sections.separator(ctx, p))
         card.addView(rHour); card.addView(Sections.separator(ctx, p))
         card.addView(rPayout); card.addView(Sections.separator(ctx, p))
@@ -116,10 +120,13 @@ class AssistScreen(
             addView(btn, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             btn.setOnClickListener {
-                settings.minPerMileCents = ((mile.text.toString().toDoubleOrNull() ?: 1.5) * 100).toInt()
+                val perDist = (mile.text.toString().toDoubleOrNull() ?: 1.5) * 100
+                settings.minPerMileCents = (if (isKm) perDist * 1.609344 else perDist).toInt()
                 settings.minPerHourCents = ((hour.text.toString().toDoubleOrNull() ?: 20.0) * 100).toInt()
                 settings.minPayoutCents = ((payout.text.toString().toDoubleOrNull() ?: 4.0) * 100).toInt()
-                settings.maxDistanceKm = (dist.text.toString().toDoubleOrNull() ?: 25.0) / 0.621371
+                settings.maxDistanceKm = (dist.text.toString().toDoubleOrNull() ?: 25.0).let {
+                    if (isKm) it else it / 0.621371
+                }
                 Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show()
             }
         })

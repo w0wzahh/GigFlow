@@ -279,7 +279,7 @@ model Earning {
   platform Platform? @relation(fields: [platformId], references: [id], onDelete: SetNull)
 
   @@index([userId, earnedAt])
-  @@index([userId, importKey])
+  @@unique([userId, importKey])
   @@index([platformId])
 }
 
@@ -303,7 +303,7 @@ model Expense {
 
   @@index([userId, occurredAt])
   @@index([userId, category])
-  @@index([userId, importKey])
+  @@unique([userId, importKey])
 }
 
 // purpose: WORK | PERSONAL | OTHER
@@ -324,7 +324,7 @@ model MileageRecord {
   vehicle Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
-  @@index([userId, importKey])
+  @@unique([userId, importKey])
 }
 
 // period: DAILY | WEEKLY | MONTHLY | CUSTOM
@@ -397,7 +397,7 @@ model ScheduleEntry {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@unique([userId, importKey])
 }
 
 model UserPreference {

@@ -116,17 +116,18 @@ class TrackScreen(
                         .put("description", note.text.toString().ifBlank { null }))
                 }
             }
-            else -> { // Mileage
-                val (rDist, dist) = Sections.formField(ctx, p, "Miles",
-                    edit?.let { "%.1f".format(pl!!.optDouble("distanceKm") * 0.621371) } ?: "", hint = "0.0")
+            else -> { // Mileage — honours the distance-unit preference
+                val (rDist, dist) = Sections.formField(ctx, p,
+                    if (isKm()) "Kilometres" else "Miles",
+                    edit?.let { "%.1f".format(distDisplay(pl!!.optDouble("distanceKm"))) } ?: "", hint = "0.0")
                 val (rFrom, from) = Sections.formField(ctx, p, "From",
                     edit?.let { pl!!.optString("startLocation") } ?: "", numeric = false, hint = "optional")
                 card.addView(rDist); card.addView(Sections.separator(ctx, p))
                 card.addView(rFrom)
                 addSaveRow(card, if (edit != null) "Save mileage" else "Log mileage", edit != null) {
-                    val mi = dist.text.toString().toDoubleOrNull() ?: return@addSaveRow err("Enter a distance")
+                    val v = dist.text.toString().toDoubleOrNull() ?: return@addSaveRow err("Enter a distance")
                     save("mileage", JSONObject()
-                        .put("distanceKm", mi * 1.60934)
+                        .put("distanceKm", if (isKm()) v else v * 1.60934)
                         .put("purpose", "WORK")
                         .put("startLocation", from.text.toString().ifBlank { null }))
                 }
@@ -164,7 +165,7 @@ class TrackScreen(
                 "earning" -> "Earning · " + Ios.money(r.payload.optInt("amountCents"))
                 "expense" -> (r.payload.optString("description").ifBlank { "Expense" }) +
                     " · " + Ios.money(r.payload.optInt("amountCents"))
-                else -> "Mileage · %.1f mi".format(r.payload.optDouble("distanceKm") * 0.621371)
+                else -> "Mileage · " + distText(r.payload.optDouble("distanceKm"))
             }
             textSize = Ios.T_HEADLINE
             setTypeface(typeface, Typeface.BOLD)
@@ -212,6 +213,11 @@ class TrackScreen(
         sheet.onDismiss { }
     }
 
+    private fun isKm() = settings.distanceUnit == "KM"
+    private fun distDisplay(km: Double) = if (isKm()) km else km * 0.621371
+    private fun distText(km: Double) =
+        "%.1f %s".format(distDisplay(km), if (isKm()) "km" else "mi")
+
     private fun err(msg: String) {
         Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
     }
@@ -240,7 +246,7 @@ class TrackScreen(
             "earning" -> Triple("Earning", "+${Ios.money(r.payload.optInt("amountCents"))}", p.green)
             "expense" -> Triple(r.payload.optString("description").ifBlank { "Expense" },
                 "-${Ios.money(r.payload.optInt("amountCents"))}", p.red)
-            else -> Triple("Mileage", "%.1f mi".format(r.payload.optDouble("distanceKm") * 0.621371), p.tint)
+            else -> Triple("Mileage", distText(r.payload.optDouble("distanceKm")), p.tint)
         }
         return Sections.row(ctx, p,
             title = label,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withErrors, ok } from "@/lib/api";
 import { getMobileUser } from "@/lib/mobile";
@@ -64,10 +65,18 @@ export const POST = withErrors(async (req) => {
     });
     return ok({ id: existing.id, updated: true });
   }
-  const row = await db.scheduleEntry.create({
-    data: { userId: user.id, importKey: key, ...entryData(body) },
-  });
-  return ok({ id: row.id, updated: false });
+  try {
+    const row = await db.scheduleEntry.create({
+      data: { userId: user.id, importKey: key, ...entryData(body) },
+    });
+    return ok({ id: row.id, updated: false });
+  } catch (e) {
+    // P2002: concurrent retry of the same clientId — already exists.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return ok({ updated: true });
+    }
+    throw e;
+  }
 });
 
 /** Delete by clientId. */

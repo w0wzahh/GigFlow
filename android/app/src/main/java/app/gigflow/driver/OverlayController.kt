@@ -57,9 +57,13 @@ class OverlayController(private val service: AccessibilityService) {
                 setPadding(10.dp(), 4.dp(), 10.dp(), 4.dp())
             }
         }
+        val isKm = SettingsRepository(service).distanceUnit == "KM"
+        val perDist = scored.perMileCents?.let { if (isKm) (it / 1.609344).toInt() else it }
         val stats = TextView(service).apply {
-            text = "${money(scored.perMileCents)}/mi · ${money(scored.perHourCents)}/hr" +
-                o.distanceKm?.let { " · ${"%.1f".format(it * 0.621371)} mi" }.orEmpty() +
+            text = "${money(perDist)}/${if (isKm) "km" else "mi"} · ${money(scored.perHourCents)}/hr" +
+                o.distanceKm?.let {
+                    " · ${"%.1f".format(if (isKm) it else it * 0.621371)} ${if (isKm) "km" else "mi"}"
+                }.orEmpty() +
                 o.durationMin?.let { " · ${it.toInt()} min" }.orEmpty() +
                 if (scored.reasons.isNotEmpty()) "\n${scored.reasons.joinToString(", ")}" else ""
             setTextColor(Color.parseColor("#D7DBE4"))

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withAuth, ok, errors, assertSameOrigin } from "@/lib/api";
 import { parseStatement, ParseError } from "@/lib/import";
@@ -52,25 +53,42 @@ export const POST = withAuth(async (req, { user }) => {
     select: { importKey: true },
   });
   const seen = new Set(existing.map((e) => e.importKey));
-  const fresh = result.rows.filter((r) => !seen.has(r.importKey));
+  // Skip rows already imported AND duplicates inside the file itself —
+  // (userId, importKey) is unique, so same-key twins in one batch would fail.
+  const inFile = new Set<string>();
+  const fresh = result.rows.filter(
+    (r) => !seen.has(r.importKey) && !inFile.has(r.importKey) && (inFile.add(r.importKey), true),
+  );
 
   if (fresh.length) {
-    await db.earning.createMany({
-      data: fresh.map((r) => ({
-        userId: user.id,
-        platformId: resolvedPlatformId,
-        category: r.category,
-        amountCents: r.amountCents,
-        tipCents: r.tipCents,
-        bonusCents: r.bonusCents,
-        earnedAt: r.earnedAt,
-        hours: r.hours,
-        distanceKm: r.distanceKm,
-        notes: r.notes,
-        importKey: r.importKey,
-        source: "IMPORT",
-      })),
-    });
+    const data = fresh.map((r) => ({
+      userId: user.id,
+      platformId: resolvedPlatformId,
+      category: r.category,
+      amountCents: r.amountCents,
+      tipCents: r.tipCents,
+      bonusCents: r.bonusCents,
+      earnedAt: r.earnedAt,
+      hours: r.hours,
+      distanceKm: r.distanceKm,
+      notes: r.notes,
+      importKey: r.importKey,
+      source: "IMPORT",
+    }));
+    try {
+      await db.earning.createMany({ data });
+    } catch (e) {
+      // A concurrent import raced us on the unique (userId, importKey)
+      // constraint — fall back to per-row inserts and skip the conflicts.
+      if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") throw e;
+      for (const row of data) {
+        try {
+          await db.earning.create({ data: row });
+        } catch (inner) {
+          if (!(inner instanceof Prisma.PrismaClientKnownRequestError) || inner.code !== "P2002") throw inner;
+        }
+      }
+    }
   }
 
   return ok({

@@ -6,15 +6,18 @@ third-party dependencies (plain Views, no Compose/Material).
 
 ## The app
 
-Four tabs behind a floating frosted tab bar:
+Five tabs behind a floating frosted tab bar:
 
-- **Home** — today's net/gross/hours/$-per-hour, a 7-day gross bar chart,
-  assistant status, and your recent records. Pulls live aggregates from the
-  web workspace when sync is configured; otherwise computes from on-device
-  records.
+- **Home** — today's net/gross/hours/$-per-hour plus a full analytics
+  section: week/month toggle, per-hour and per-distance rates, platform
+  breakdown, daily gross chart, goals, and insights. Pulls live aggregates
+  from the web workspace when sync is configured; otherwise computes from
+  on-device records.
 - **Offers** — the assistant's scored-offer feed: verdict pill (Good /
-  Borderline / Skipped), $/mi and $/hr, grouped by day, filterable by a
-  segmented control.
+  Borderline / Skipped), per-distance and per-hour rates, grouped by day,
+  filterable by a segmented control; tap a row for full metrics.
+- **Plan** — recurring shift blocks with day-of-week picker, start/end
+  times, and an optional earnings target; syncs to `/api/mobile/schedule`.
 - **Track** — quick-add earnings, expenses, and mileage in grouped iOS
   forms. Everything saves to a local SQLite store first (works offline) and
   pushes to the web app when connected, with `clientId` dedupe so retries

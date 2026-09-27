@@ -26,6 +26,7 @@ It is an independent product and is not affiliated with or endorsed by any gig p
 ## Quick start
 
 ```bash
+cd web
 cp .env.example .env        # set APP_SECRET (see below)
 npm install                 # runs prisma generate via postinstall
 npx prisma migrate dev      # create + migrate prisma/dev.db
@@ -47,28 +48,30 @@ by importing a CSV earnings statement from your platform's driver portal
 ## Project structure
 
 ```
-prisma/            schema + migrations + seed
-src/
-  app/
-    (marketing)/   landing, privacy, terms, status
-    (auth)/        login, register, password reset, email verify
-    (app)/         authenticated shell: dashboard, earnings, expenses,
+web/               the Next.js app — all web commands run inside this folder
+  prisma/          schema + migrations + seed
+  src/
+    app/
+      (marketing)/ landing, privacy, terms, status
+      (auth)/      login, register, password reset, email verify
+      (app)/       authenticated shell: dashboard, earnings, expenses,
                    mileage, offers, rules, platforms, schedule, analytics,
                    notifications, settings/*
-    api/           REST route handlers — the only mutation path
-    onboarding/    first-run setup wizard
-  components/      UI primitives, charts, shell, feature views
-  lib/
-    auth/          password hashing (scrypt), sessions, tokens, mailer
-    integrations/  PlatformIntegration adapter contract, registry, Gmail adapter
-    rules/         declarative offer-rule engine
-    import.ts      CSV statement parser with column auto-detection + dedupe
-    metrics.ts     all earnings/expense/mileage aggregation
-    catalog.ts     platform catalog (honest availability status)
-tests/
-  unit/            rules engine, dates, units, auth/crypto, CSV + receipt parsing
-  integration/     DB CRUD, cascade deletes, metrics, import idempotency
-  e2e/             Playwright: register → onboard → core flows
+      api/         REST route handlers — the only mutation path
+      onboarding/  first-run setup wizard
+    components/    UI primitives, charts, shell, feature views
+    lib/
+      auth/        password hashing (scrypt), sessions, tokens, mailer
+      integrations/ PlatformIntegration adapter contract, Gmail adapter
+      rules/       declarative offer-rule engine
+      import.ts    CSV statement parser with column auto-detection + dedupe
+      metrics.ts   all earnings/expense/mileage aggregation
+      catalog.ts   platform catalog (honest availability status)
+  tests/
+    unit/          rules engine, dates, units, auth/crypto, CSV + receipt parsing
+    integration/   DB CRUD, cascade deletes, metrics, import idempotency
+    e2e/           Playwright: register → onboard → core flows
+android/           the Android companion app (Kotlin, Gradle)
 docs/              architecture, API, integrations, database notes
 ```
 

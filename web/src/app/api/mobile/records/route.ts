@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withErrors, ok, errors } from "@/lib/api";
 import { getMobileUser } from "@/lib/mobile";
@@ -37,6 +38,14 @@ const record = z.discriminatedUnion("type", [
 
 type RecordBody = z.infer<typeof record>;
 
+/**
+ * P2002 = unique violation on (userId, importKey) — a concurrent retry of the
+ * same clientId raced us. The row already exists, so treat it as deduped.
+ */
+function isUniqueViolation(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+}
+
 async function createRecord(userId: string, body: RecordBody): Promise<{ id?: string; deduped: boolean }> {
   const idemKey = body.clientId ? `companion:${body.clientId}` : null;
 
@@ -48,22 +57,27 @@ async function createRecord(userId: string, body: RecordBody): Promise<{ id?: st
     const platform = body.platformKey
       ? await db.platform.findUnique({ where: { key: body.platformKey }, select: { id: true } })
       : null;
-    const row = await db.earning.create({
-      data: {
-        userId,
-        platformId: platform?.id ?? null,
-        category: body.category,
-        amountCents: body.amountCents,
-        tipCents: body.tipCents ?? 0,
-        hours: body.hours ?? 0,
-        distanceKm: body.distanceKm ?? 0,
-        notes: body.notes ?? null,
-        earnedAt: body.earnedAt ? new Date(body.earnedAt) : new Date(),
-        importKey: idemKey,
-        source: "COMPANION",
-      },
-    });
-    return { id: row.id, deduped: false };
+    try {
+      const row = await db.earning.create({
+        data: {
+          userId,
+          platformId: platform?.id ?? null,
+          category: body.category,
+          amountCents: body.amountCents,
+          tipCents: body.tipCents ?? 0,
+          hours: body.hours ?? 0,
+          distanceKm: body.distanceKm ?? 0,
+          notes: body.notes ?? null,
+          earnedAt: body.earnedAt ? new Date(body.earnedAt) : new Date(),
+          importKey: idemKey,
+          source: "COMPANION",
+        },
+      });
+      return { id: row.id, deduped: false };
+    } catch (e) {
+      if (idemKey && isUniqueViolation(e)) return { deduped: true };
+      throw e;
+    }
   }
 
   if (body.type === "expense") {
@@ -71,37 +85,47 @@ async function createRecord(userId: string, body: RecordBody): Promise<{ id?: st
       const dup = await db.expense.findFirst({ where: { userId, importKey: idemKey } });
       if (dup) return { id: dup.id, deduped: true };
     }
-    const row = await db.expense.create({
-      data: {
-        userId,
-        category: body.category,
-        amountCents: body.amountCents,
-        description: body.description ?? null,
-        occurredAt: body.occurredAt ? new Date(body.occurredAt) : new Date(),
-        importKey: idemKey,
-        source: "COMPANION",
-      },
-    });
-    return { id: row.id, deduped: false };
+    try {
+      const row = await db.expense.create({
+        data: {
+          userId,
+          category: body.category,
+          amountCents: body.amountCents,
+          description: body.description ?? null,
+          occurredAt: body.occurredAt ? new Date(body.occurredAt) : new Date(),
+          importKey: idemKey,
+          source: "COMPANION",
+        },
+      });
+      return { id: row.id, deduped: false };
+    } catch (e) {
+      if (idemKey && isUniqueViolation(e)) return { deduped: true };
+      throw e;
+    }
   }
 
   if (idemKey) {
     const dup = await db.mileageRecord.findFirst({ where: { userId, importKey: idemKey } });
     if (dup) return { id: dup.id, deduped: true };
   }
-  const row = await db.mileageRecord.create({
-    data: {
-      userId,
-      distanceKm: body.distanceKm,
-      purpose: body.purpose,
-      startLocation: body.startLocation ?? null,
-      endLocation: body.endLocation ?? null,
-      date: body.date ? new Date(body.date) : new Date(),
-      importKey: idemKey,
-      source: "COMPANION",
-    },
-  });
-  return { id: row.id, deduped: false };
+  try {
+    const row = await db.mileageRecord.create({
+      data: {
+        userId,
+        distanceKm: body.distanceKm,
+        purpose: body.purpose,
+        startLocation: body.startLocation ?? null,
+        endLocation: body.endLocation ?? null,
+        date: body.date ? new Date(body.date) : new Date(),
+        importKey: idemKey,
+        source: "COMPANION",
+      },
+    });
+    return { id: row.id, deduped: false };
+  } catch (e) {
+    if (idemKey && isUniqueViolation(e)) return { deduped: true };
+    throw e;
+  }
 }
 
 /** Single record push. */

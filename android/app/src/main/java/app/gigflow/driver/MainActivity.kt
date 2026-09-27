@@ -14,8 +14,8 @@ import app.gigflow.driver.ui.*
 /**
  * GigFlow Driver — iOS-styled companion.
  *
- * Four tabs hosted in a single activity (no fragments, no deps):
- *   Dashboard · Offers · Track · Assistant
+ * Five tabs hosted in a single activity (no fragments, no deps):
+ *   Dashboard · Offers · Track · Plan · Assistant
  *
  * The accessibility service runs independently of this UI — see
  * GigFlowAccessibilityService.
@@ -29,7 +29,6 @@ class MainActivity : Activity() {
     private lateinit var dashboard: DashboardScreen
     private lateinit var offers: OffersScreen
     private lateinit var track: TrackScreen
-    private lateinit var stats: StatsScreen
     private lateinit var plan: PlanScreen
     private lateinit var assist: AssistScreen
 
@@ -44,9 +43,8 @@ class MainActivity : Activity() {
         p = Ios.palette(this)
 
         dashboard = DashboardScreen(this, p, db, settings)
-        offers = OffersScreen(this, p)
+        offers = OffersScreen(this, p, settings)
         track = TrackScreen(this, p, db, settings)
-        stats = StatsScreen(this, p, db, settings)
         plan = PlanScreen(this, p, db, settings)
         assist = AssistScreen(this, p, settings, db)
 
@@ -56,7 +54,6 @@ class MainActivity : Activity() {
             TabBar.Tab("house", "Home"),
             TabBar.Tab("tag", "Offers"),
             TabBar.Tab("plus.circle", "Track"),
-            TabBar.Tab("chart.bar", "Stats"),
             TabBar.Tab("calendar", "Plan"),
             TabBar.Tab("slider", "Assist"),
         ))
@@ -106,8 +103,7 @@ class MainActivity : Activity() {
             0 -> dashboard.screen
             1 -> offers.screen
             2 -> track.screen
-            3 -> stats.screen
-            4 -> plan.screen
+            3 -> plan.screen
             else -> assist.screen
         }
         if (target.parent == content) return
@@ -126,8 +122,7 @@ class MainActivity : Activity() {
             0 -> dashboard.refresh()
             1 -> offers.refresh()
             2 -> track.refresh()
-            3 -> stats.refresh()
-            4 -> plan.refresh()
+            3 -> plan.refresh()
             else -> assist.refresh()
         }
     }
