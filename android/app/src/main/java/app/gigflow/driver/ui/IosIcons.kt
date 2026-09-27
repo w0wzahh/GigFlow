@@ -1,7 +1,50 @@
 package app.gigflow.driver.ui
 
+import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.Drawable
+import android.widget.ImageView
+import app.gigflow.driver.R
+
+/**
+ * Glyph name → real vector icon (Material iconography, Apache-2.0).
+ * Falls back to the hand-drawn [IosIcon] canvas glyph if unmapped.
+ */
+object Icons {
+    private val map = mapOf(
+        "house" to R.drawable.ic_home,
+        "tag" to R.drawable.ic_offer,
+        "plus.circle" to R.drawable.ic_add_circle,
+        "slider" to R.drawable.ic_tune,
+        "bolt" to R.drawable.ic_bolt,
+        "car" to R.drawable.ic_car,
+        "speed" to R.drawable.ic_speed,
+        "doc" to R.drawable.ic_doc,
+        "chevron.right" to R.drawable.ic_chevron_right,
+        "checkmark" to R.drawable.ic_check,
+        "grid" to R.drawable.ic_apps,
+        "heart" to R.drawable.ic_heart,
+        "link" to R.drawable.ic_link,
+        "trash" to R.drawable.ic_trash,
+        "globe" to R.drawable.ic_globe,
+        "person" to R.drawable.ic_person,
+        "mappin" to R.drawable.ic_place,
+        "history" to R.drawable.ic_history,
+    )
+
+    /** An ImageView with the glyph rendered at [sizeDp], tinted [tint]. */
+    fun view(ctx: Context, glyph: String, tint: Int, sizeDp: Float): ImageView {
+        val iv = ImageView(ctx)
+        val res = map[glyph]
+        if (res != null) {
+            iv.setImageResource(res)
+            iv.setColorFilter(tint, PorterDuff.Mode.SRC_IN)
+        } else {
+            iv.setImageDrawable(IosIcon(glyph, tint, Ios.dp(ctx, 1.8f).toFloat()))
+        }
+        return iv
+    }
+}
 
 /**
  * SF-Symbol-style line icons drawn on canvas — thin stroke, round caps.

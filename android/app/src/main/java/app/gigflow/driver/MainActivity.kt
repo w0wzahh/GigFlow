@@ -1,8 +1,12 @@
 package app.gigflow.driver
 
 import android.app.Activity
+import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import app.gigflow.driver.ui.*
@@ -61,9 +65,31 @@ class MainActivity : Activity() {
         }
         setContentView(root)
 
-        // status/nav bars blend into the app background
-        window.statusBarColor = p.groupedBg
-        window.navigationBarColor = p.groupedBg
+        // Edge-to-edge: content flows under the status bar; the nav bar hides
+        // and only reappears on a bottom swipe (transient, never resizes us).
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false)
+            window.insetsController?.let { ctl ->
+                ctl.hide(WindowInsets.Type.navigationBars())
+                ctl.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+            root.setOnApplyWindowInsetsListener { _, insets ->
+                val sys = insets.getInsets(WindowInsets.Type.systemBars())
+                content.setPadding(0, sys.top, 0, 0)
+                tabBar.setPadding(0, 0, 0, sys.bottom)
+                insets
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        }
 
         show(0)
     }
@@ -87,11 +113,27 @@ class MainActivity : Activity() {
 
     private fun refresh(i: Int): Unit {
         Ios.hapticsEnabled = settings.haptics
+        syncIfConfigured()
         return when (i) {
             0 -> dashboard.refresh()
             1 -> offers.refresh()
             2 -> track.refresh()
             else -> assist.refresh()
+        }
+    }
+
+    /** Flush offline records and refresh dashboard totals on launch/resume. */
+    private var lastSync = 0L
+    private fun syncIfConfigured() {
+        if (!GigFlowApi.configured(settings.syncBaseUrl, settings.syncToken)) return
+        val now = System.currentTimeMillis()
+        if (now - lastSync < 15_000) return // don't hammer on every tab switch
+        lastSync = now
+        val pending = db.unsynced()
+        if (pending.isNotEmpty()) {
+            GigFlowApi.pushBatch(settings.syncBaseUrl, settings.syncToken, pending) { ok ->
+                if (ok) pending.forEach { db.markSynced(it.clientId) }
+            }
         }
     }
 

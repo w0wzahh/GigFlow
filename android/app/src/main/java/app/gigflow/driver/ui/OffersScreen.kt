@@ -27,7 +27,7 @@ class OffersScreen(ctx: Context, private val p: Palette) {
         val segWrap = FrameLayout(ctx).apply {
             setPadding(dp(ctx, 16f), dp(ctx, 4f), dp(ctx, 16f), 0)
         }
-        val seg = IosSegmented(ctx, p, listOf("All", "Good", "Borderline", "Skipped"))
+        val seg = IosSegmented(ctx, p, listOf("All", "Good", "Borderline", "Skipped"), initial = filter)
         seg.onSelected = { filter = it; refresh() }
         segWrap.addView(seg)
         c.addView(segWrap)

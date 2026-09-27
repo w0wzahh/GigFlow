@@ -216,7 +216,7 @@ class DashboardScreen(
         val (glyph, tint, label, amount) = when (r.type) {
             "earning" -> Quad("bolt", p.green, "Earning", "+${Ios.money(r.payload.optInt("amountCents"))}")
             "expense" -> Quad("tag", p.red, "Expense", "-${Ios.money(r.payload.optInt("amountCents"))}")
-            else -> Quad("car", p.tint, "Mileage", distanceText(r.payload.optDouble("distanceKm")))
+            else -> Quad("speed", p.tint, "Mileage", distanceText(r.payload.optDouble("distanceKm")))
         }
         return Sections.row(ctx, p,
             title = label,

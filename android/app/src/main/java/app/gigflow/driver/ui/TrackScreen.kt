@@ -247,7 +247,7 @@ class TrackScreen(
             subtitle = SimpleDateFormat("MMM d, h:mm a", Locale.US).format(Date(r.createdAt)) +
                 if (!r.synced) " · pending" else "",
             value = amount,
-            iconGlyph = when (r.type) { "earning" -> "bolt"; "expense" -> "tag"; else -> "car" },
+            iconGlyph = when (r.type) { "earning" -> "bolt"; "expense" -> "tag"; else -> "speed" },
             iconTint = tint,
             chevron = true,
         ) { showRecordSheet(r) }

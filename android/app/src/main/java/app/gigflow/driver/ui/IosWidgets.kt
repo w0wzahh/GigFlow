@@ -202,9 +202,8 @@ object Sections {
         if (iconGlyph != null) {
             val badge = FrameLayout(ctx).apply {
                 background = Ios.rounded(7f, iconTint ?: p.tint, ctx)
-                addView(ImageView(ctx).apply {
-                    setImageDrawable(IosIcon(iconGlyph, Color.WHITE, dp(ctx, 1.8f).toFloat()))
-                }, FrameLayout.LayoutParams(dp(ctx, 15f), dp(ctx, 15f), Gravity.CENTER))
+                addView(Icons.view(ctx, iconGlyph, Color.WHITE, 16f),
+                    FrameLayout.LayoutParams(dp(ctx, 16f), dp(ctx, 16f), Gravity.CENTER))
             }
             row.addView(badge.lp(dp(ctx, 29f), dp(ctx, 29f), intArrayOf(0, 0, dp(ctx, 12f), 0)))
         }
@@ -228,9 +227,8 @@ object Sections {
             })
         }
         if (chevron) {
-            row.addView(ImageView(ctx).apply {
-                setImageDrawable(IosIcon("chevron.right", p.label3, dp(ctx, 2f).toFloat()))
-            }.lp(dp(ctx, 10f), dp(ctx, 14f), intArrayOf(dp(ctx, 6f), 0, 0, 0)))
+            row.addView(Icons.view(ctx, "chevron.right", p.label3, 14f)
+                .lp(dp(ctx, 12f), dp(ctx, 14f), intArrayOf(dp(ctx, 6f), 0, 0, 0)))
         }
         if (onClick != null) {
             row.pressable()
@@ -443,9 +441,7 @@ class TabBar(ctx: Context, private val p: Palette) : FrameLayout(ctx) {
                 pressable(0.92f)
                 setOnClickListener { select(i) }
             }
-            val icon = ImageView(context).apply {
-                setImageDrawable(IosIcon(tab.glyph, p.gray, dp(context, 1.9f).toFloat()))
-            }
+            val icon = Icons.view(context, tab.glyph, p.gray, 24f)
             val label = TextView(context).apply {
                 text = tab.label
                 textSize = 10f
@@ -469,7 +465,7 @@ class TabBar(ctx: Context, private val p: Palette) : FrameLayout(ctx) {
             val icon = cell.getChildAt(0) as ImageView
             val label = cell.getChildAt(1) as TextView
             val tint = if (j == i) p.tint else p.gray
-            icon.setImageDrawable(IosIcon(tabs[j].glyph, tint, dp(context, 1.9f).toFloat()))
+            icon.setColorFilter(tint, android.graphics.PorterDuff.Mode.SRC_IN)
             label.setTextColor(tint)
             if (j == i) {
                 icon.animate().scaleX(1.12f).scaleY(1.12f).setDuration(ANIM_FAST)
