@@ -127,7 +127,7 @@ object GigFlowApi {
         android.os.Handler(android.os.Looper.getMainLooper()).post(block)
     }
 
-    private fun platformKeyFor(pkg: String): String = when {
+    fun platformKeyFor(pkg: String): String = when {
         "uber" in pkg -> "uber"
         "lyft" in pkg -> "lyft"
         "doordash" in pkg -> "doordash"

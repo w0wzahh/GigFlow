@@ -61,6 +61,20 @@ class SettingsRepository(context: Context) {
         get() = prefs.getInt("auto_accept_delay", 5)
         set(v) = prefs.edit().putInt("auto_accept_delay", v).apply()
 
+    /**
+     * Start GPS shift tracking automatically when a watched driver app comes
+     * to the foreground, and stop after a stretch away from them. Still needs
+     * location permission — without it this silently does nothing.
+     */
+    var autoTrackShift: Boolean
+        get() = prefs.getBoolean("auto_track_shift", false)
+        set(v) = prefs.edit().putBoolean("auto_track_shift", v).apply()
+
+    /** Auto-record earnings from post-trip summary screens. */
+    var autoLogEarnings: Boolean
+        get() = prefs.getBoolean("auto_log_earnings", true)
+        set(v) = prefs.edit().putBoolean("auto_log_earnings", v).apply()
+
     /** GigFlow web app base URL, e.g. https://app.gigflow.example — empty = off. */
     var syncBaseUrl: String
         get() = prefs.getString("sync_base_url", "") ?: ""

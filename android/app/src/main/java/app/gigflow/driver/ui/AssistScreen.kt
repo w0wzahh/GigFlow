@@ -95,10 +95,20 @@ class AssistScreen(
             "Only when most rules fail", settings.autoDecline) { settings.autoDecline = it }
         val (r4, _) = Sections.switchRow(ctx, p, "Voice alerts",
             "Speak verdicts aloud as offers appear", settings.voiceAlerts) { settings.voiceAlerts = it }
+        val (r5, _) = Sections.switchRow(ctx, p, "Auto-track mileage",
+            "Start a GPS shift when a driver app opens", settings.autoTrackShift) {
+            settings.autoTrackShift = it
+        }
+        val (r6, _) = Sections.switchRow(ctx, p, "Auto-log earnings",
+            "Record payouts from post-trip summary screens", settings.autoLogEarnings) {
+            settings.autoLogEarnings = it
+        }
         card.addView(r1); card.addView(Sections.separator(ctx, p))
         card.addView(r2); card.addView(Sections.separator(ctx, p))
         card.addView(r3); card.addView(Sections.separator(ctx, p))
-        card.addView(r4)
+        card.addView(r4); card.addView(Sections.separator(ctx, p))
+        card.addView(r5); card.addView(Sections.separator(ctx, p))
+        card.addView(r6)
 
         // Auto-accept countdown — Mystro's 5-second window, cancellable.
         card.addView(Sections.separator(ctx, p))

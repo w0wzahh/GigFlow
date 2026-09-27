@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.view.accessibility.AccessibilityEvent
+import org.json.JSONObject
 
 /**
  * Watches the configured driver apps' windows, extracts offer cards, scores
@@ -36,6 +37,16 @@ class GigFlowAccessibilityService : AccessibilityService() {
     private var pendingAutoAccept: Runnable? = null
     private var countdownTicker: Runnable? = null
 
+    // Auto-shift tracking state
+    private var lastDriverAppAt = 0L
+    private var idleStopCheck: Runnable? = null
+    private val loggedCompletions = mutableSetOf<String>()
+
+    companion object {
+        /** Auto-stop shift tracking after this long with no driver-app events. */
+        private const val IDLE_STOP_MS = 30 * 60_000L
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         settings = SettingsRepository(this)
@@ -56,11 +67,16 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        val prefs = settings.rules()
-        if (!prefs.enabled) return
-
         val pkg = event.packageName?.toString() ?: return
         val now = System.currentTimeMillis()
+
+        // Events only arrive from watched driver apps (manifest filters), so
+        // any event means the driver is inside a work app — feed the
+        // auto-shift tracker before anything else.
+        onDriverAppSeen(now)
+
+        val prefs = settings.rules()
+        if (!prefs.enabled) return
         if (now - lastScanAt < 350) return // throttle contentChanged storms
         lastScanAt = now
 
@@ -69,7 +85,11 @@ class GigFlowAccessibilityService : AccessibilityService() {
 
         val nodes = OfferParser.flatten(root)
         val offer = OfferParser.parse(pkg, nodes)
-        if (offer == null) { offerGone(); return }
+        if (offer == null) {
+            maybeLogCompletion(pkg, nodes, now)
+            offerGone()
+            return
+        }
 
         // Same card still on screen — don't rescore/re-overlay every frame.
         if (offer.fingerprint == lastFingerprint && now - lastSeenAt < 60_000) {
@@ -178,6 +198,65 @@ class GigFlowAccessibilityService : AccessibilityService() {
         countdownTicker = ticker
         pendingAutoAccept = Runnable { handler.removeCallbacks(ticker) }
         handler.postDelayed(ticker, 1000)
+    }
+
+    /**
+     * Auto shift tracking (opt-in): opening any watched driver app starts GPS
+     * mileage; 30 minutes without a watched app stops it. The overlay
+     * permission we already hold exempts us from background-FGS limits, but
+     * guard anyway — worst case is the user taps "Start shift" themselves.
+     */
+    private fun onDriverAppSeen(now: Long) {
+        lastDriverAppAt = now
+        if (!settings.autoTrackShift) return
+        if (!MileageTracker.hasLocationPermission(this)) return
+        if (!MileageTracker.running) {
+            try {
+                startForegroundService(MileageTracker.startIntent(this))
+            } catch (_: Exception) { /* background-start blocked — manual start still works */ }
+        }
+        // Arm the idle-stop check; every driver-app event pushes it out.
+        idleStopCheck?.let { handler.removeCallbacks(it) }
+        val check = Runnable {
+            if (System.currentTimeMillis() - lastDriverAppAt >= IDLE_STOP_MS &&
+                MileageTracker.running
+            ) {
+                stopService(MileageTracker.stopIntent(this))
+            }
+        }
+        idleStopCheck = check
+        handler.postDelayed(check, IDLE_STOP_MS)
+    }
+
+    /**
+     * Post-trip earnings capture — reads the completed-delivery / earnings
+     * summary screen and records the payout as a local earning (syncs later).
+     */
+    private fun maybeLogCompletion(pkg: String, nodes: List<OfferParser.FlatNode>, now: Long) {
+        if (!settings.autoLogEarnings) return
+        val comp = CompletionParser.parse(pkg, nodes) ?: return
+        if (!loggedCompletions.add(comp.fingerprint)) return // already logged this screen
+        if (loggedCompletions.size > 200) loggedCompletions.clear()
+
+        val payload = JSONObject()
+            .put("amountCents", comp.payoutCents)
+            .put("category", "TRIP")
+            .put("platformKey", GigFlowApi.platformKeyFor(pkg))
+            .put("notes", "Auto-captured")
+            .put("earnedAt", now)
+        comp.tipCents?.let { payload.put("tipCents", it) }
+
+        val db = localDb ?: return
+        val row = db.insert("earning", payload)
+        GigFlowApi.pushRecord(settings.syncBaseUrl, settings.syncToken, row.payload) { ok ->
+            if (ok) db.markSynced(row.clientId)
+        }
+        if (settings.voiceAlerts) {
+            tts?.speak(
+                "Logged ${"%.2f".format(comp.payoutCents / 100.0)} dollars",
+                TextToSpeech.QUEUE_ADD, null, "earn",
+            )
+        }
     }
 
     private fun cancelAutoAccept() {
