@@ -31,6 +31,7 @@ android {
 }
 
 dependencies {
-    // Intentionally zero third-party deps — the accessibility service,
-    // overlay, and gesture dispatch are all platform APIs.
+    // osmdroid: Apache-2.0 map renderer on OpenStreetMap tiles — no API key,
+    // tiles cache on-device for offline re-viewing. Powers the Plan heatmap.
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 }

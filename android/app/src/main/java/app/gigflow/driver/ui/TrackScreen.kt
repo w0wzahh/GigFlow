@@ -1,5 +1,6 @@
 package app.gigflow.driver.ui
 
+import android.app.Activity
 import android.content.Context
 import android.graphics.Typeface
 import android.view.Gravity
@@ -49,6 +50,58 @@ class TrackScreen(
         val card = Sections.card(ctx, p)
         buildForm(card)
         c.addView(card)
+
+        // Automatic shift tracking — Gridwise-style: start a shift, drive in
+        // any app, GPS accumulates km and saves one mileage record on stop.
+        c.addView(Sections.header(ctx, p, "Shift tracking"))
+        val shiftCard = Sections.card(ctx, p)
+        val running = MileageTracker.running
+        val km = MileageTracker.kmSoFar
+        shiftCard.addView(Sections.row(ctx, p,
+            iconGlyph = "gauge",
+            iconTint = if (running) 0xFF30D158.toInt() else p.tint,
+            title = if (running) "Shift in progress" else "Automatic mileage",
+            subtitle = when {
+                running -> "${distText(km)} tracked · keep driving"
+                MileageTracker.hasLocationPermission(ctx) ->
+                    "GPS tracks your distance while you work"
+                else -> "Needs location permission to track distance"
+            },
+        ))
+        shiftCard.addView(Sections.separator(ctx, p))
+        shiftCard.addView(LinearLayout(ctx).apply {
+            setPadding(dp(ctx, 16f), dp(ctx, 8f), dp(ctx, 16f), dp(ctx, 16f))
+            val btn = iosButton(ctx, p,
+                if (running) "Stop & save shift" else "Start shift",
+                tint = if (running) p.red else null)
+            addView(btn, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            btn.setOnClickListener {
+                if (running) {
+                    ctx.stopService(MileageTracker.stopIntent(ctx))
+                } else if (!MileageTracker.hasLocationPermission(ctx)) {
+                    (ctx as Activity).requestPermissions(
+                        arrayOf(
+                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ),
+                        MainActivity.REQ_LOCATION,
+                    )
+                } else {
+                    ctx.startForegroundService(MileageTracker.startIntent(ctx))
+                }
+                refresh()
+                // The service flips `running` asynchronously — repaint once
+                // it's had a beat to start/stop.
+                shiftCard.postDelayed({ refresh() }, 700)
+            }
+        })
+        c.addView(shiftCard)
+        c.addView(TextView(ctx).apply {
+            text = "Tracked distance is an estimate — edit the record it creates if needed."
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
+            setPadding(dp(ctx, 20f), dp(ctx, 6f), 0, 0)
+        })
 
         val unsynced = db.unsyncedCount()
         c.addView(Sections.header(ctx, p, "Recent"))

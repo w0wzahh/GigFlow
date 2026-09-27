@@ -1,8 +1,12 @@
 package app.gigflow.driver
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Handler
 import android.os.Looper
+import android.speech.tts.TextToSpeech
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -27,11 +31,28 @@ class GigFlowAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var hideRunnable: Runnable? = null
     private var hideToken = ""
+    private var tts: TextToSpeech? = null
+    private var localDb: LocalDb? = null
+    private var pendingAutoAccept: Runnable? = null
+    private var countdownTicker: Runnable? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         settings = SettingsRepository(this)
         overlay = OverlayController(this)
+        localDb = LocalDb(this)
+        tts = TextToSpeech(this) { /* ready */ }
+    }
+
+    /** Last-known fix — good enough for tagging where an offer appeared. */
+    private fun lastLocation(): Pair<Double, Double>? {
+        if (!MileageTracker.hasLocationPermission(this)) return null
+        val lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return try {
+            (lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER))
+                ?.let { it.latitude to it.longitude }
+        } catch (_: SecurityException) { null }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -61,6 +82,9 @@ class GigFlowAccessibilityService : AccessibilityService() {
         val scored = RuleEngine.score(offer, prefs)
         activeOffer = scored
 
+        val loc = lastLocation()
+        loc?.let { localDb?.addPoint(it.first, it.second) }
+
         OfferLog.add(this, OfferLog.Entry(
             at = offer.seenAt,
             pkg = pkg,
@@ -71,10 +95,30 @@ class GigFlowAccessibilityService : AccessibilityService() {
             perHourCents = scored.perHourCents,
             verdict = scored.verdict.name,
             action = "shown",
+            lat = loc?.first,
+            lng = loc?.second,
         ))
         GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, scored, "shown")
 
-        overlay.show(scored) { action ->
+        // Mystro-style voice alert for the verdict, when enabled.
+        if (settings.voiceAlerts) {
+            val label = when (scored.verdict) {
+                Verdict.GOOD -> "Good offer"
+                Verdict.MEH -> "Borderline offer"
+                Verdict.BAD -> "Skip it"
+            }
+            tts?.speak(
+                "$label, ${"%.2f".format(offer.payoutCents / 100.0)} dollars",
+                TextToSpeech.QUEUE_FLUSH, null, "offer",
+            )
+        }
+
+        val autoAcceptDelay =
+            if (prefs.autoAccept && scored.verdict == Verdict.GOOD && offer.acceptNode != null)
+                settings.autoAcceptDelaySec else 0
+
+        overlay.show(scored, autoAcceptDelay) { action ->
+            cancelAutoAccept()
             when (action) {
                 OverlayController.Action.ACCEPT -> offer.acceptNode?.let {
                     GesturePerformer.tap(this, it.bounds)
@@ -84,6 +128,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
                     GesturePerformer.tap(this, it.bounds)
                     recordAction(scored, "manual_decline")
                 }
+                OverlayController.Action.CANCEL_AUTO -> Unit
             }
             overlay.hide()
         }
@@ -100,13 +145,10 @@ class GigFlowAccessibilityService : AccessibilityService() {
         }
 
         // Automation: only when the user explicitly enabled it, and only when
-        // we actually found the button's bounds.
-        if (prefs.autoAccept && scored.verdict == Verdict.GOOD) {
-            offer.acceptNode?.let { node ->
-                GesturePerformer.tap(this, node.bounds) { ok ->
-                    if (ok) recordAction(scored, "auto_accept")
-                }
-            }
+        // we actually found the button's bounds. Auto-accept runs on the
+        // configured countdown (like Mystro's) so the driver can cancel.
+        if (autoAcceptDelay > 0) {
+            scheduleAutoAccept(scored, offer.acceptNode!!, autoAcceptDelay)
         } else if (prefs.autoDecline && scored.verdict == Verdict.BAD) {
             offer.declineNode?.let { node ->
                 GesturePerformer.tap(this, node.bounds) { ok ->
@@ -116,6 +158,34 @@ class GigFlowAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Tick the overlay countdown down, then tap accept at 0. */
+    private fun scheduleAutoAccept(scored: ScoredOffer, node: NodeRef, delaySec: Int) {
+        var left = delaySec
+        val ticker = object : Runnable {
+            override fun run() {
+                left--
+                if (left <= 0) {
+                    GesturePerformer.tap(this@GigFlowAccessibilityService, node.bounds) { ok ->
+                        if (ok) recordAction(scored, "auto_accept")
+                    }
+                    overlay.hide()
+                } else {
+                    overlay.setCountdown(left)
+                    handler.postDelayed(this, 1000)
+                }
+            }
+        }
+        countdownTicker = ticker
+        pendingAutoAccept = Runnable { handler.removeCallbacks(ticker) }
+        handler.postDelayed(ticker, 1000)
+    }
+
+    private fun cancelAutoAccept() {
+        countdownTicker?.let { handler.removeCallbacks(it) }
+        countdownTicker = null
+        pendingAutoAccept = null
+    }
+
     private fun recordAction(s: ScoredOffer, action: String) {
         val o = s.offer
         OfferLog.add(this, OfferLog.Entry(
@@ -123,6 +193,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             distanceKm = o.distanceKm, durationMin = o.durationMin,
             perMileCents = s.perMileCents, perHourCents = s.perHourCents,
             verdict = s.verdict.name, action = action,
+            lat = null, lng = null,
         ))
         GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, s, action)
     }
@@ -142,7 +213,10 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        cancelAutoAccept()
         overlay.hide()
+        tts?.shutdown()
+        tts = null
         super.onDestroy()
     }
 }

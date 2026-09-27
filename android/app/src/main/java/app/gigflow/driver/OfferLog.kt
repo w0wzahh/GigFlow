@@ -20,6 +20,8 @@ object OfferLog {
         val perHourCents: Int?,
         val verdict: String,
         val action: String, // "shown" | "auto_accept" | "auto_decline" | "manual_accept" | "manual_decline"
+        val lat: Double? = null,
+        val lng: Double? = null,
     )
 
     fun add(context: Context, e: Entry) {
@@ -35,6 +37,8 @@ object OfferLog {
         e.durationMin?.let { o.put("min", it) }
         e.perMileCents?.let { o.put("perMile", it) }
         e.perHourCents?.let { o.put("perHour", it) }
+        e.lat?.let { o.put("lat", it) }
+        e.lng?.let { o.put("lng", it) }
         val next = JSONArray()
         next.put(o)
         for (i in 0 until minOf(arr.length(), MAX - 1)) next.put(arr.get(i))
@@ -56,6 +60,8 @@ object OfferLog {
                 perHourCents = if (o.has("perHour")) o.getInt("perHour") else null,
                 verdict = o.getString("verdict"),
                 action = o.getString("action"),
+                lat = if (o.has("lat")) o.getDouble("lat") else null,
+                lng = if (o.has("lng")) o.getDouble("lng") else null,
             )
         }
     }

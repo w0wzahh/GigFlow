@@ -93,9 +93,30 @@ class AssistScreen(
             "Only when every rule passes", settings.autoAccept) { settings.autoAccept = it }
         val (r3, _) = Sections.switchRow(ctx, p, "Auto-decline bad offers",
             "Only when most rules fail", settings.autoDecline) { settings.autoDecline = it }
+        val (r4, _) = Sections.switchRow(ctx, p, "Voice alerts",
+            "Speak verdicts aloud as offers appear", settings.voiceAlerts) { settings.voiceAlerts = it }
         card.addView(r1); card.addView(Sections.separator(ctx, p))
         card.addView(r2); card.addView(Sections.separator(ctx, p))
-        card.addView(r3)
+        card.addView(r3); card.addView(Sections.separator(ctx, p))
+        card.addView(r4)
+
+        // Auto-accept countdown — Mystro's 5-second window, cancellable.
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
+            title = "Auto-accept countdown",
+            subtitle = "Tap the countdown on the overlay to cancel",
+            iconGlyph = "bolt", iconTint = p.orange,
+        ))
+        card.addView(LinearLayout(ctx).apply {
+            setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), dp(ctx, 14f))
+            val delays = listOf(3, 5, 8, 10)
+            addView(IosSegmented(ctx, p,
+                delays.map { "${it}s" },
+                initial = delays.indexOf(settings.autoAcceptDelaySec).coerceAtLeast(0)
+            ).apply { onSelected = { settings.autoAcceptDelaySec = delays[it] } },
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        })
         c_footer(card, "GigFlow only taps when the button is found clearly. It never touches other apps.")
         return card
     }

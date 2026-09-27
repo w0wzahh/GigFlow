@@ -51,6 +51,16 @@ class SettingsRepository(context: Context) {
         get() = prefs.getBoolean("haptics", true)
         set(v) = prefs.edit().putBoolean("haptics", v).apply()
 
+    /** Speak offer verdicts aloud — Mystro-style voice alerts. */
+    var voiceAlerts: Boolean
+        get() = prefs.getBoolean("voice_alerts", false)
+        set(v) = prefs.edit().putBoolean("voice_alerts", v).apply()
+
+    /** Seconds before auto-accept fires; user can cancel from the overlay. */
+    var autoAcceptDelaySec: Int
+        get() = prefs.getInt("auto_accept_delay", 5)
+        set(v) = prefs.edit().putInt("auto_accept_delay", v).apply()
+
     /** GigFlow web app base URL, e.g. https://app.gigflow.example — empty = off. */
     var syncBaseUrl: String
         get() = prefs.getString("sync_base_url", "") ?: ""

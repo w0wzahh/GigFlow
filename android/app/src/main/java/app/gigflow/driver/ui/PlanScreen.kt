@@ -12,6 +12,12 @@ import app.gigflow.driver.*
 import app.gigflow.driver.ui.Ios.Palette
 import app.gigflow.driver.ui.Ios.dp
 import org.json.JSONObject
+import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.TilesOverlay
 import java.util.*
 
 /**
@@ -36,6 +42,15 @@ class PlanScreen(
         screen.column.removeAllViews()
         val c = screen.column
 
+        c.addView(Sections.header(ctx, p, "Work heatmap"))
+        c.addView(heatCard())
+        c.addView(TextView(ctx).apply {
+            text = "Built only from your own tracked shifts and tagged offers — " +
+                "not citywide demand. More driving = more coverage."
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label3)
+            setPadding(dp(ctx, 20f), dp(ctx, 6f), dp(ctx, 16f), dp(ctx, 4f))
+        })
+
         c.addView(Sections.header(ctx, p, "New shift"))
         c.addView(formCard())
         c.addView(Sections.header(ctx, p, "This week"))
@@ -46,6 +61,59 @@ class PlanScreen(
             setPadding(dp(ctx, 20f), dp(ctx, 6f), dp(ctx, 16f), dp(ctx, 16f))
         })
         screen.animateIn()
+    }
+
+    /** Mystro-style activity heatmap over OpenStreetMap (osmdroid). */
+    private fun heatCard(): View {
+        val card = Sections.card(ctx, p)
+        val pts = db.heatPoints()
+        if (pts.isEmpty()) {
+            card.addView(Sections.row(ctx, p,
+                iconGlyph = "mappin", iconTint = p.tint,
+                title = "No activity mapped yet",
+                subtitle = "Start a shift in Track or let the assistant tag " +
+                    "offer locations — your hotspots appear here.",
+            ))
+            return card
+        }
+
+        Configuration.getInstance().load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
+        Configuration.getInstance().userAgentValue = ctx.packageName
+
+        val map = MapView(ctx)
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.setBuiltInZoomControls(false)
+        map.isTilesScaledToDpi = true
+        map.minZoomLevel = 4.0
+        map.overlays.add(HeatOverlay(pts, p.tint))
+
+        // Center/zoom to cover all points.
+        val lats = pts.map { it.lat }; val lngs = pts.map { it.lng }
+        val box = BoundingBox(
+            lats.max(), lngs.max(), lats.min(), lngs.min(),
+        )
+        map.post { map.zoomToBoundingBox(box, false, dp(ctx, 32f), 18.0, 1500L) }
+        map.controller.setZoom(12.0)
+        map.controller.setCenter(GeoPoint(lats.average(), lngs.average()))
+
+        // Dark-mode friendly tiles when the palette is dark.
+        if (p.isDark) map.overlayManager.tilesOverlay.setColorFilter(TilesOverlay.INVERT_COLORS)
+
+        val holder = FrameLayout(ctx).apply {
+            clipToOutline = true
+            outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+            background = Ios.rounded(12f, p.fill, ctx)
+            setPadding(0, 0, 0, 0)
+            addView(map, FrameLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 220f)))
+        }
+        holder.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { map.onResume() }
+            override fun onViewDetachedFromWindow(v: View) { map.onPause() }
+        })
+        card.addView(holder)
+        return card
     }
 
     private fun formCard(): View {

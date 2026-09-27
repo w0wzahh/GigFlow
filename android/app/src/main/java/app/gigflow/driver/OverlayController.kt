@@ -21,10 +21,16 @@ class OverlayController(private val service: AccessibilityService) {
 
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var view: LinearLayout? = null
+    private var countdown: TextView? = null
 
     private fun money(cents: Int?) = cents?.let { "$%.2f".format(it / 100.0) } ?: "—"
 
-    fun show(scored: ScoredOffer, onAction: (Action) -> Unit) {
+    /** Update the auto-accept countdown line, if shown. */
+    fun setCountdown(secondsLeft: Int) {
+        countdown?.text = "Auto-accepting in ${secondsLeft}s · tap to cancel"
+    }
+
+    fun show(scored: ScoredOffer, autoAcceptSec: Int = 0, onAction: (Action) -> Unit) {
         hide()
         val o = scored.offer
         val (bg, fgColor, label) = when (scored.verdict) {
@@ -104,6 +110,20 @@ class OverlayController(private val service: AccessibilityService) {
             container.addView(row)
         }
 
+        // Mystro-style countdown strip: auto-accept fires when it hits 0,
+        // tapping it cancels and leaves the offer alone.
+        if (autoAcceptSec > 0) {
+            countdown = TextView(service).apply {
+                text = "Auto-accepting in ${autoAcceptSec}s · tap to cancel"
+                setTextColor(Color.parseColor("#8BC5FF"))
+                textSize = 12.5f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setPadding(0, 8.dp(), 0, 0)
+                setOnClickListener { onAction(Action.CANCEL_AUTO) }
+            }
+            container.addView(countdown)
+        }
+
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -130,9 +150,10 @@ class OverlayController(private val service: AccessibilityService) {
             try { wm.removeView(it) } catch (_: Exception) {}
         }
         view = null
+        countdown = null
     }
 
-    enum class Action { ACCEPT, DECLINE }
+    enum class Action { ACCEPT, DECLINE, CANCEL_AUTO }
 
     companion object {
         /** Check the service is actually enabled — used by MainActivity. */

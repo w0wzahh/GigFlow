@@ -50,7 +50,7 @@ object Ios {
     }
 
     // --- Palette -------------------------------------------------------------
-    class Palette(dark: Boolean) {
+    class Palette(val isDark: Boolean) {
         val bg: Int
         val groupedBg: Int // background behind grouped lists
         val card: Int      // secondarySystemGroupedBackground
@@ -69,7 +69,7 @@ object Ios {
         val sheetHandle: Int
 
         init {
-            if (dark) {
+            if (isDark) {
                 bg = Color.parseColor("#000000")
                 groupedBg = Color.parseColor("#000000")
                 card = Color.parseColor("#1C1C1E")

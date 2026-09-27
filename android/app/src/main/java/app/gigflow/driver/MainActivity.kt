@@ -22,6 +22,10 @@ import app.gigflow.driver.ui.*
  */
 class MainActivity : Activity() {
 
+    companion object {
+        const val REQ_LOCATION = 7
+    }
+
     private lateinit var settings: SettingsRepository
     private lateinit var db: LocalDb
     private lateinit var p: Ios.Palette
@@ -145,5 +149,18 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::tabBar.isInitialized) refresh(current)
+    }
+
+    /** Location permission result — granted means the user tapped Start shift. */
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_LOCATION) {
+            if (MileageTracker.hasLocationPermission(this)) {
+                startForegroundService(MileageTracker.startIntent(this))
+            }
+            if (::track.isInitialized) track.refresh()
+        }
     }
 }
