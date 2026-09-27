@@ -52,3 +52,6 @@ next-env.d.ts
 /android/local.properties
 /android/.gradle/
 *.apk
+
+# Local release builds (uploaded to GitHub Releases)
+releases/
