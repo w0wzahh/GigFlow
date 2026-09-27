@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, CardBody, Field, Input, Select, Badge } from "@/components/ui/primitives";
+import { Button, Card, CardBody, Field, Input, Select } from "@/components/ui/primitives";
 import { PlatformDot } from "@/components/platform-dot";
 import { api, ApiClientError } from "@/lib/client";
 import { cn } from "@/lib/cn";
@@ -45,7 +45,6 @@ export function OnboardingWizard({
     targetHourly: "",
     weeklyGoal: "",
     platformKeys: [] as string[],
-    enableDemo: true,
     vehicle: {
       nickname: "", make: "", model: "", year: "",
       fuelType: "", fuelEconomy: "", financing: "",
@@ -91,7 +90,6 @@ export function OnboardingWizard({
           weeklyGoalCents: form.weeklyGoal ? Math.round(Number(form.weeklyGoal) * 100) : null,
           platformKeys: form.platformKeys,
           vehicle,
-          enableDemo: form.enableDemo,
         },
       });
       router.push("/dashboard");
@@ -181,7 +179,7 @@ export function OnboardingWizard({
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{p.name}</p>
                         <p className="text-[11px] text-faint">
-                          {p.status === "MOCK" ? "Demo data" : p.status === "UNAVAILABLE" ? "Manual only" : p.status === "COMING_SOON" ? "Coming soon" : "Manual tracking"}
+                          {p.status === "IMPORT" ? "Statement import" : p.status === "COMING_SOON" ? "Coming soon" : "Manual tracking"}
                         </p>
                       </div>
                       {selected && <Check size={14} className="text-accent shrink-0" />}
@@ -229,7 +227,8 @@ export function OnboardingWizard({
 
           {step === 3 && (
             <div className="space-y-4">
-              <h1 className="text-lg font-semibold">Goals & demo data</h1>
+              <h1 className="text-lg font-semibold">Your targets</h1>
+              <p className="text-sm text-muted -mt-2">Optional — used for goal tracking and offer evaluation. You can change these later.</p>
               <div className="grid grid-cols-2 gap-3">
                 <Field label={`Target $/hour (${form.currency})`}>
                   <Input inputMode="decimal" placeholder="25" value={form.targetHourly} onChange={(e) => set("targetHourly", e.target.value)} />
@@ -238,25 +237,6 @@ export function OnboardingWizard({
                   <Input inputMode="decimal" placeholder="1000" value={form.weeklyGoal} onChange={(e) => set("weeklyGoal", e.target.value)} />
                 </Field>
               </div>
-              <button
-                type="button"
-                onClick={() => set("enableDemo", !form.enableDemo)}
-                aria-pressed={form.enableDemo}
-                className={cn(
-                  "w-full flex items-start gap-3 rounded-lg border p-4 text-left transition-colors",
-                  form.enableDemo ? "border-accent bg-accent-soft/50" : "border-border",
-                )}
-              >
-                <span className={cn("mt-0.5 w-4 h-4 rounded border inline-flex items-center justify-center", form.enableDemo ? "bg-accent border-accent text-accent-fg" : "border-border-strong")}>
-                  {form.enableDemo && <Check size={12} />}
-                </span>
-                <span>
-                  <span className="text-sm font-medium flex items-center gap-2">Explore with demo data <Badge tone="accent">Recommended</Badge></span>
-                  <span className="block text-xs text-muted mt-1">
-                    Populate your workspace with clearly-marked sample trips, earnings, expenses and offers so you can see how GigFlow works. Remove it any time in Settings → Data.
-                  </span>
-                </span>
-              </button>
               {error && <p className="text-sm text-negative" role="alert">{error}</p>}
             </div>
           )}
@@ -275,7 +255,7 @@ export function OnboardingWizard({
               onClick={async () => {
                 await api("/api/onboarding", {
                   method: "POST",
-                  body: { ...form, platformKeys: [], vehicle: null, enableDemo: false, targetHourlyCents: null, weeklyGoalCents: null },
+                  body: { ...form, platformKeys: [], vehicle: null, targetHourlyCents: null, weeklyGoalCents: null },
                 });
                 router.push("/dashboard");
                 router.refresh();

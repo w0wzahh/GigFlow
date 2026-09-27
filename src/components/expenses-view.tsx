@@ -94,7 +94,8 @@ export function ExpensesView({
                   {expenses.map((e) => (
                     <tr key={e.id} className="group">
                       <td className="px-4 sm:px-5 py-2.5 whitespace-nowrap text-muted">{formatDate(e.occurredAt)}
-                        {e.source === "DEMO" && <Badge tone="accent" className="ml-1.5">demo</Badge>}
+                        {e.source === "IMPORT" && <Badge tone="accent" className="ml-1.5">import</Badge>}
+                        {e.source === "SYNC" && <Badge tone="accent" className="ml-1.5">sync</Badge>}
                       </td>
                       <td className="py-2.5"><Badge>{e.category.replace(/_/g, " ").toLowerCase()}</Badge></td>
                       <td className="py-2.5 text-muted max-w-48 truncate">{e.description ?? "—"}</td>

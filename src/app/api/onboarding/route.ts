@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import { withAuth, parseBody, ok, assertSameOrigin } from "@/lib/api";
 import { onboardingSchema } from "@/lib/schemas";
 import { ensurePlatformCatalog } from "@/lib/catalog";
-import { generateDemoData } from "@/lib/demo";
 
 export const POST = withAuth(async (req, { user }) => {
   assertSameOrigin(req);
@@ -48,9 +47,9 @@ export const POST = withAuth(async (req, { user }) => {
           create: {
             userId: user.id,
             platformId: p.id,
-            // Adapter-backed platforms get a live/demo connection; everything
-            // else is tracked manually — never pretend otherwise.
-            status: p.adapterKey ? "MOCK" : "MANUAL",
+            // Adapter-backed platforms go through their own OAuth/connect flow;
+            // everything else is tracked manually — never pretend otherwise.
+            status: p.adapterKey ? "PENDING" : "MANUAL",
           },
         });
       }
@@ -73,10 +72,6 @@ export const POST = withAuth(async (req, { user }) => {
       });
     }
   });
-
-  if (body.enableDemo) {
-    await generateDemoData(user.id);
-  }
 
   return ok({ complete: true });
 });

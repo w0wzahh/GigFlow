@@ -1,8 +1,8 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 
 /**
- * Full-journey e2e suite. Each worker registers one user, completes onboarding
- * (with demo data), captures the session cookie, and reuses it for the
+ * Full-journey e2e suite. Each worker registers one user, completes
+ * onboarding, captures the session cookie, and reuses it for the
  * authenticated tests so we stay well under auth rate limits.
  *
  * Serial mode: a failure early in the journey skips dependent tests.

@@ -39,15 +39,10 @@ Generate a real secret for anything beyond local dev:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Register an account, complete onboarding, and enable **demo data** to explore a
-populated workspace. Demo records are stored with `source="DEMO"`, never mix with
-real entries, and can be wiped from **Settings → Data**.
-
-### Demo account (optional)
-
-```bash
-SEED_DEMO=1 npm run db:seed   # demo@gigflow.app / DemoDriver1
-```
+Register an account and complete onboarding. GigFlow works with **real data
+only** — no demo fixtures. Populate your workspace by logging work manually or
+by importing a CSV earnings statement from your platform's driver portal
+(**Platforms → Import statement**).
 
 ## Project structure
 
@@ -65,14 +60,14 @@ src/
   components/      UI primitives, charts, shell, feature views
   lib/
     auth/          password hashing (scrypt), sessions, tokens, mailer
-    integrations/  PlatformIntegration adapter contract + registry + mock provider
+    integrations/  PlatformIntegration adapter contract, registry, Gmail adapter
     rules/         declarative offer-rule engine
-    demo.ts        clearly-marked demo data generator
+    import.ts      CSV statement parser with column auto-detection + dedupe
     metrics.ts     all earnings/expense/mileage aggregation
     catalog.ts     platform catalog (honest availability status)
 tests/
-  unit/            rules engine, dates, units, auth/crypto
-  integration/     DB CRUD, cascade deletes, metrics, demo separation
+  unit/            rules engine, dates, units, auth/crypto, CSV + receipt parsing
+  integration/     DB CRUD, cascade deletes, metrics, import idempotency
   e2e/             Playwright: register → onboard → core flows
 docs/              architecture, API, integrations, database notes
 ```
@@ -96,15 +91,20 @@ Postgres migration path).
 
 ## Integrations — honest by design
 
-GigFlow ships a `PlatformIntegration` adapter interface (`authenticate`,
-`disconnect`, `sync`, `getDriverStatus`) plus a deterministic **demo provider**.
-
 Real-world constraint (as of Sept 2026): Uber, Lyft, DoorDash, Uber Eats,
 Instacart, Grubhub and Amazon Flex do **not** offer public APIs for
-driver-facing earnings/trip sync. Instead of faking connections, those
-platforms are marked **UNAVAILABLE — manual tracking** in the catalog, and the
-adapter architecture is ready for any official API that appears. Details:
-`docs/integrations.md`.
+driver-facing earnings/trip sync. Instead of faking connections, GigFlow ships
+two real ingestion paths:
+
+- **CSV statement import** — parses the earnings exports every major platform
+  offers, with column auto-detection and idempotent `importKey` dedupe.
+- **Gmail receipt sync** — optional, read-only OAuth; turns Uber/Lyft
+  trip-receipt emails into earnings. Requires `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET` and `APP_URL`; otherwise shows "Needs setup".
+
+Everything else is manual tracking, clearly labeled. A `PlatformIntegration`
+adapter interface + registry is ready for any official API that appears.
+Details: `docs/integrations.md`.
 
 ## Security
 

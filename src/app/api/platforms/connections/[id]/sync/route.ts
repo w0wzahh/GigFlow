@@ -25,9 +25,8 @@ export const POST = withAuth<Params>(async (req, { user, params }) => {
       since: conn.lastSyncAt ?? undefined,
     });
 
-    // Persist synced records. Mock/demo adapter output is marked source=DEMO;
-    // real adapters will write source=SYNC.
-    const source = conn.platform.status === "MOCK" ? "DEMO" : "SYNC";
+    // Persist synced records. All adapter output is marked source=SYNC.
+    const source = "SYNC";
     let imported = 0;
     for (const t of result.trips) {
       const exists = await db.trip.findFirst({
@@ -81,7 +80,7 @@ export const POST = withAuth<Params>(async (req, { user, params }) => {
 
     await db.platformConnection.update({
       where: { id: conn.id },
-      data: { lastSyncAt: new Date(), lastError: null, status: conn.platform.status === "MOCK" ? "MOCK" : "CONNECTED" },
+      data: { lastSyncAt: new Date(), lastError: null, status: "CONNECTED" },
     });
     return ok({ imported, earnings: result.earnings.length });
   } catch (e) {

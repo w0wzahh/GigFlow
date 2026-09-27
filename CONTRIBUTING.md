@@ -8,10 +8,9 @@
 
 ## Ground rules
 
-- **No fake integrations.** If a platform lacks an official API, mark it
-  `UNAVAILABLE` or `COMING_SOON` in the catalog — never simulate a real connection.
-- **Demo data stays marked.** Anything synthetic must be written with
-  `source="DEMO"` so it can be identified and removed independently.
+- **No fake integrations or mock data.** If a platform lacks an official API,
+  mark it `MANUAL` or `COMING_SOON` in the catalog — never simulate a real
+  connection. There is no demo mode; every record is real user data.
 - **Money is integer cents.** Distances are kilometers. Convert at the edge only.
 - **All mutations go through `/api/*`** with Zod validation and per-user
   authorization. Pages read via `lib/` functions directly — no duplicate fetches.
@@ -21,7 +20,7 @@
 
 1. Implement `PlatformIntegration` in `src/lib/integrations/<platform>.ts`.
 2. Register it in `src/lib/integrations/registry.ts`.
-3. Flip the catalog row's `status` to `AVAILABLE` and set `adapterKey`.
+3. Flip the catalog row's `status` to `IMPORT`/`MANUAL` as appropriate and set `adapterKey`.
 4. Add adapter tests under `tests/integration/`.
 
 ## Style

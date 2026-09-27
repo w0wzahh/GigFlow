@@ -80,7 +80,7 @@ export function MileageView({
                   {records.map((r) => (
                     <tr key={r.id} className="group">
                       <td className="px-4 sm:px-5 py-2.5 whitespace-nowrap text-muted">{formatDate(r.date)}
-                        {r.source === "DEMO" && <Badge tone="accent" className="ml-1.5">demo</Badge>}
+                        {r.source === "IMPORT" && <Badge tone="accent" className="ml-1.5">import</Badge>}
                       </td>
                       <td className="py-2.5"><Badge tone={r.purpose === "WORK" ? "accent" : "neutral"}>{r.purpose.toLowerCase()}</Badge></td>
                       <td className="py-2.5 text-muted">{r.vehicle?.nickname ?? "—"}</td>

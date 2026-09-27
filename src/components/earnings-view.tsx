@@ -27,11 +27,15 @@ const RANGES = [
 
 export function RangeTabs({ rangeKey, base }: { rangeKey: string; base: string }) {
   return (
-    <div className="flex gap-1 rounded-lg border border-border p-0.5 bg-elevated" role="tablist" aria-label="Date range">
+    <div className="segmented" role="tablist" aria-label="Date range">
       {RANGES.map(([k, label]) => (
         <Link
           key={k} href={`${base}?range=${k}`} role="tab" aria-selected={rangeKey === k}
-          className={`px-2.5 h-7 inline-flex items-center rounded-md text-xs font-medium ${rangeKey === k ? "bg-accent-soft text-accent" : "text-muted hover:text-fg"}`}
+          className={`px-3.5 h-8 inline-flex items-center text-[13px] font-medium transition-colors ${
+            rangeKey === k
+              ? "bg-elevated text-fg shadow-[var(--shadow-card)]"
+              : "text-muted hover:text-fg"
+          }`}
         >
           {label}
         </Link>
@@ -158,7 +162,8 @@ export function EarningsView({
                   {earnings.map((e) => (
                     <tr key={e.id} className="group">
                       <td className="px-4 sm:px-5 py-2.5 whitespace-nowrap text-muted">{formatDateTime(e.earnedAt)}
-                        {e.source === "DEMO" && <Badge tone="accent" className="ml-1.5">demo</Badge>}
+                        {e.source === "IMPORT" && <Badge tone="accent" className="ml-1.5">import</Badge>}
+                        {e.source === "SYNC" && <Badge tone="accent" className="ml-1.5">sync</Badge>}
                       </td>
                       <td className="py-2.5">
                         {e.platform ? (

@@ -1,18 +1,24 @@
 import { db } from "@/lib/db";
 
 /**
- * Platform catalog. Status reflects real API availability — see
- * src/lib/integrations/registry.ts for research notes.
+ * Platform catalog. Status reflects real integration availability — see
+ * docs/integrations.md for the research behind each status.
  *
- * MOCK platforms are served by the demo adapter for development.
- * UNAVAILABLE platforms support manual tracking only.
+ *   IMPORT      — official earnings/statement exports exist and GigFlow can
+ *                 parse them (CSV/statement import in-app)
+ *   MANUAL      — no API or export pipeline; manual tracking only
+ *   COMING_SOON — an integration is designed and in progress
+ *   UNAVAILABLE — confirmed no viable integration path today
+ *
+ * There are no mock/demo platforms. Nothing here pretends to sync with a
+ * provider that has no real integration.
  */
 
 export type PlatformSeed = {
   key: string;
   name: string;
   category: "RIDESHARE" | "DELIVERY" | "SHOPPING" | "FREIGHT" | "OTHER";
-  status: "AVAILABLE" | "COMING_SOON" | "UNAVAILABLE" | "MOCK";
+  status: "IMPORT" | "MANUAL" | "COMING_SOON" | "UNAVAILABLE";
   adapterKey?: string;
   statusNote?: string;
   color: string;
@@ -21,29 +27,32 @@ export type PlatformSeed = {
 
 export const PLATFORM_CATALOG: PlatformSeed[] = [
   {
-    key: "demo",
-    name: "Demo Provider",
-    category: "OTHER",
-    status: "MOCK",
-    adapterKey: "mock:demo",
-    statusNote: "Built-in demo integration that generates clearly-marked sample data for exploring GigFlow.",
-    color: "#0ea5a5",
-  },
-  {
     key: "uber",
     name: "Uber",
     category: "RIDESHARE",
-    status: "UNAVAILABLE",
-    statusNote: "Uber does not offer a public API for driver earnings or trip sync. Track manually or via import.",
+    status: "IMPORT",
+    statusNote:
+      "No public driver API exists. Download your payment statements from the Uber driver dashboard and import them here — or track manually.",
     color: "#000000",
     website: "https://www.uber.com",
+  },
+  {
+    key: "uber-eats",
+    name: "Uber Eats",
+    category: "DELIVERY",
+    status: "IMPORT",
+    statusNote:
+      "Courier earnings are included in Uber's payment statement exports. Import statements or track manually.",
+    color: "#06c167",
+    website: "https://www.ubereats.com",
   },
   {
     key: "lyft",
     name: "Lyft",
     category: "RIDESHARE",
-    status: "UNAVAILABLE",
-    statusNote: "Lyft does not offer a public driver API. Track manually or via import.",
+    status: "IMPORT",
+    statusNote:
+      "Lyft does not offer a public driver API. Export your driving history/earnings from the driver dashboard and import it here.",
     color: "#ff00bf",
     website: "https://www.lyft.com",
   },
@@ -51,26 +60,19 @@ export const PLATFORM_CATALOG: PlatformSeed[] = [
     key: "doordash",
     name: "DoorDash",
     category: "DELIVERY",
-    status: "UNAVAILABLE",
-    statusNote: "DoorDash's Drive API serves merchants, not driver data. Track manually or via import.",
+    status: "IMPORT",
+    statusNote:
+      "The DoorDash Drive API serves merchants, not Dashers. Import your earnings export or track manually.",
     color: "#eb1700",
     website: "https://www.doordash.com",
-  },
-  {
-    key: "uber-eats",
-    name: "Uber Eats",
-    category: "DELIVERY",
-    status: "UNAVAILABLE",
-    statusNote: "No public courier data API. Track manually or via import.",
-    color: "#06c167",
-    website: "https://www.ubereats.com",
   },
   {
     key: "instacart",
     name: "Instacart",
     category: "SHOPPING",
-    status: "UNAVAILABLE",
-    statusNote: "No public shopper API. Track manually or via import.",
+    status: "MANUAL",
+    statusNote:
+      "No public shopper API. Track earnings manually — imports work too if you export batch earnings.",
     color: "#43b02a",
     website: "https://www.instacart.com",
   },
@@ -78,8 +80,8 @@ export const PLATFORM_CATALOG: PlatformSeed[] = [
     key: "grubhub",
     name: "Grubhub",
     category: "DELIVERY",
-    status: "UNAVAILABLE",
-    statusNote: "No public driver API. Track manually or via import.",
+    status: "MANUAL",
+    statusNote: "No public driver API. Track manually or import a CSV export.",
     color: "#ff8000",
     website: "https://www.grubhub.com",
   },
@@ -87,8 +89,8 @@ export const PLATFORM_CATALOG: PlatformSeed[] = [
     key: "amazon-flex",
     name: "Amazon Flex",
     category: "DELIVERY",
-    status: "UNAVAILABLE",
-    statusNote: "No public driver API. Track manually or via import.",
+    status: "MANUAL",
+    statusNote: "No public driver API. Track manually or import a CSV export.",
     color: "#ff9900",
     website: "https://www.amazon.com",
   },
@@ -96,16 +98,17 @@ export const PLATFORM_CATALOG: PlatformSeed[] = [
     key: "spark",
     name: "Walmart Spark",
     category: "DELIVERY",
-    status: "COMING_SOON",
-    statusNote: "Integration under evaluation — no public API currently available.",
+    status: "MANUAL",
+    statusNote: "No public driver API. Track manually or import a CSV export.",
     color: "#0071ce",
   },
   {
     key: "other",
     name: "Other Platform",
     category: "OTHER",
-    status: "AVAILABLE",
-    statusNote: "Generic platform for manual tracking of any gig work.",
+    status: "MANUAL",
+    statusNote:
+      "Any gig work platform — track manually or import any CSV with date and amount columns.",
     color: "#64748b",
   },
 ];
@@ -135,4 +138,6 @@ export async function ensurePlatformCatalog(): Promise<void> {
       },
     });
   }
+  // The retired demo provider is removed if it ever existed in this database.
+  await db.platform.deleteMany({ where: { key: "demo" } }).catch(() => {});
 }

@@ -22,8 +22,8 @@ fetch their own API over HTTP. Client components mutate only via `/api/*`.
 | Pages | `src/app/**` | Composition, loading/empty/error states |
 | Views | `src/components/*-view.tsx` | Interactive feature UIs (client components) |
 | API | `src/app/api/**` | Validation, auth, authorization |
-| Domain | `src/lib/*` | Metrics, rules, catalog, demo, notifications |
-| Adapters | `src/lib/integrations/*` | PlatformIntegration contract + registry |
+| Domain | `src/lib/*` | Metrics, rules, catalog, statement import, notifications |
+| Adapters | `src/lib/integrations/*` | PlatformIntegration contract, registry, Gmail adapter |
 | Data | `prisma/` | Schema, migrations, seed |
 
 ## Money, distance, time
@@ -66,8 +66,10 @@ client-side for live preview.
 
 `PlatformIntegration` (see `integrations.md`) abstracts `authenticate`,
 `disconnect`, `sync`, `getDriverStatus`, `getTrips`, `getEarnings`,
-`getOffers`. A registry maps `adapterKey` → adapter instance. Only the demo
-provider ships; real providers slot in without touching product code.
+`getOffers`. A registry maps `adapterKey` → adapter instance for future
+official APIs. Two real ingestion paths ship today: CSV statement import
+(`lib/import.ts`) and Gmail receipt sync (`lib/integrations/gmail.ts`).
+There is no demo/mock data path — every record is user data.
 
 ## Notifications
 

@@ -1,11 +1,14 @@
-import { MockProvider } from "./mock-provider";
 import type { PlatformIntegration } from "./types";
 
 /**
  * Adapter registry.
  *
  * Adding a real integration = implement PlatformIntegration + register here +
- * mark the Platform catalog row AVAILABLE. Nothing else needs to change.
+ * mark the Platform catalog row IMPORT/MANUAL as appropriate. Nothing else
+ * needs to change.
+ *
+ * There are no mock adapters. A platform either has a real implemented
+ * adapter or it doesn't.
  */
 
 const adapters = new Map<string, PlatformIntegration>();
@@ -19,23 +22,20 @@ export function getAdapter(adapterKey: string | null | undefined): PlatformInteg
   return adapters.get(adapterKey) ?? null;
 }
 
-// Demo adapter used for the "Demo Provider" platform and for platforms whose
-// real APIs do not support third-party driver-facing access.
-registerAdapter(new MockProvider("demo"));
-
 /**
- * Research notes (as of Sept 2026) on real platform APIs:
+ * Integration reality (as of Sept 2026) — see docs/integrations.md:
  *
- * - Uber: the Uber for Business / Driver APIs do not expose a general
- *   per-driver earnings/trips feed for third-party consumer apps. Driver-side
- *   data access is not publicly available. Status: UNAVAILABLE for sync.
- * - Lyft: no public driver API for earnings/trips. Status: UNAVAILABLE.
- * - DoorDash: Drive API is for merchants dispatching deliveries, not driver
- *   data. Status: UNAVAILABLE.
- * - Instacart / Grubhub / Amazon Flex: no public driver-facing APIs.
- *   Status: UNAVAILABLE.
- *
- * These platforms remain connectable in the UI only via manual data entry,
- * CSV import (future), or the demo provider. The catalog rows carry honest
- * status so users are never misled.
+ * - No major gig platform (Uber, Lyft, DoorDash, Instacart, Grubhub,
+ *   Amazon Flex, Walmart Spark) offers a public driver-data API. Products
+ *   like Mystro work via Android Accessibility automation — an on-device
+ *   screen-reading approach that doesn't translate to a web app and has
+ *   been condemned by Google.
+ * - Legitimate web-app data sources that ARE implemented:
+ *     1. CSV statement import (src/lib/import.ts) — every major platform
+ *        lets drivers download earnings exports.
+ *     2. Gmail receipt sync (src/lib/integrations/gmail.ts) — read-only
+ *        OAuth, parses per-trip receipt emails into earnings.
+ *     3. Manual tracking for everything else.
+ * - This registry stays for future official APIs: implement
+ *   PlatformIntegration, registerAdapter(), set the catalog adapterKey.
  */

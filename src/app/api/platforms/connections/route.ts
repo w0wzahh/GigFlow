@@ -33,7 +33,7 @@ export const POST = withAuth(async (req, { user }) => {
       await adapter.authenticate({ userId: user.id, connectionId: connection.id });
       await db.platformConnection.update({
         where: { id: connection.id },
-        data: { status: platform.status === "MOCK" ? "MOCK" : "CONNECTED" },
+        data: { status: "CONNECTED" },
       });
     } catch (e) {
       await db.platformConnection.update({

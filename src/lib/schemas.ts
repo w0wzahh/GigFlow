@@ -157,5 +157,4 @@ export const onboardingSchema = z.object({
   weeklyGoalCents: z.number().int().min(0).nullish(),
   platformKeys: z.array(z.string()).max(20).default([]),
   vehicle: vehicleSchema.nullish(),
-  enableDemo: z.boolean().default(false),
 });

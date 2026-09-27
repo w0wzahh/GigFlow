@@ -1,6 +1,6 @@
 # API Reference
 
-Base: `/api/*`. Auth via `gf_session` cookie. Success → `{ data: ... }`;
+Base: `/api/*`. Auth via `gigflow_session` cookie. Success → `{ data: ... }`;
 failure → `{ error: { code, message } }` with the appropriate status.
 
 ## Auth (public, rate-limited)
@@ -24,7 +24,17 @@ failure → `{ error: { code, message } }` with the appropriate status.
 | GET | `/api/export` | full JSON export, `Content-Disposition: attachment` |
 | DELETE | `/api/sessions/:id` | revoke a session (can't revoke current via this route) |
 | POST | `/api/onboarding` | atomic onboarding completion (prefs + vehicle + platforms + goals) |
-| POST/DELETE | `/api/demo` | generate / clear demo data |
+
+## Imports & integrations
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/import` | multipart `{ file: CSV, platformId? }` → parses a platform statement into `Earning` rows (`source: "IMPORT"`), deduped by `importKey` |
+| GET | `/api/integrations` | data-source status: CSV import, Gmail receipts (connected / needs setup) |
+| GET | `/api/integrations/gmail/authorize` | starts Google OAuth (`gmail.readonly`) |
+| GET | `/api/integrations/gmail/callback` | OAuth callback — stores encrypted tokens |
+| POST | `/api/integrations/gmail` | sync: fetch + parse trip-receipt emails into earnings |
+| DELETE | `/api/integrations/gmail` | disconnect Gmail, delete stored tokens |
 
 ## Vehicles
 
@@ -35,10 +45,10 @@ Fields: nickname, make, model, year, fuelType, fuelEconomy, isEv, financing.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/platforms` | catalog with `status`: `AVAILABLE` / `COMING_SOON` / `UNAVAILABLE` |
+| GET | `/api/platforms` | catalog with `status`: `IMPORT` / `MANUAL` / `COMING_SOON` / `UNAVAILABLE` |
 | GET/POST | `/api/platforms/connections` | POST: `{ platformId }` — manual-only platforms get `MANUAL` status |
 | PATCH/DELETE | `/api/platforms/connections/:id` | enable/disable, remove |
-| POST | `/api/platforms/connections/:id/sync` | runs adapter `sync()`; manual connections return `NOTHING_TO_SYNC` |
+| POST | `/api/platforms/connections/:id/sync` | runs the adapter's `sync()` — only for adapter-backed platforms |
 
 ## Records
 

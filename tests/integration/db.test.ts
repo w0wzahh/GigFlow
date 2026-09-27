@@ -7,7 +7,7 @@ import { execSync } from "node:child_process";
 import { rmSync, existsSync } from "node:fs";
 import { db } from "@/lib/db";
 import { summarize, platformBreakdown } from "@/lib/metrics";
-import { generateDemoData, clearDemoData, hasDemoData } from "@/lib/demo";
+import { parseStatement } from "@/lib/import";
 import { ensurePlatformCatalog } from "@/lib/catalog";
 import { hashPassword } from "@/lib/auth/password";
 
@@ -96,21 +96,36 @@ describe("metrics.summarize", () => {
   });
 });
 
-describe("demo data separation", () => {
-  it("generates marked demo records and clears them without touching real data", async () => {
-    const u = await makeUser("d@test.dev");
-    // A real (manual) record that must survive cleanup.
-    await db.earning.create({ data: { userId: u.id, category: "TRIP", amountCents: 9999, earnedAt: new Date(), source: "MANUAL" } });
+describe("statement import", () => {
+  const CSV = [
+    "Trip Date,Your Earnings,Trip ID",
+    "2026-09-01,24.50,t-1",
+    "2026-09-02,31.20,t-2",
+  ].join("\n");
 
-    expect(await hasDemoData(u.id)).toBe(false);
-    await generateDemoData(u.id);
-    expect(await hasDemoData(u.id)).toBe(true);
-    expect(await db.earning.count({ where: { userId: u.id, source: "DEMO" } })).toBeGreaterThan(50);
+  it("imports parsed rows idempotently via importKey", async () => {
+    const u = await makeUser("i@test.dev");
+    const { rows } = parseStatement(CSV, "uber");
+    expect(rows).toHaveLength(2);
 
-    await clearDemoData(u.id);
-    expect(await hasDemoData(u.id)).toBe(false);
-    const remaining = await db.earning.findMany({ where: { userId: u.id } });
-    expect(remaining).toHaveLength(1);
-    expect(remaining[0].amountCents).toBe(9999);
+    const persist = async () => {
+      const existing = await db.earning.findMany({
+        where: { userId: u.id, importKey: { in: rows.map((r) => r.importKey) } },
+        select: { importKey: true },
+      });
+      const seen = new Set(existing.map((e) => e.importKey));
+      await db.earning.createMany({
+        data: rows.filter((r) => !seen.has(r.importKey)).map((r) => ({
+          userId: u.id, category: "TRIP", amountCents: r.amountCents,
+          earnedAt: r.earnedAt, importKey: r.importKey, source: "IMPORT",
+        })),
+      });
+    };
+
+    await persist();
+    await persist(); // re-import of the same file must be a no-op
+    const earnings = await db.earning.findMany({ where: { userId: u.id, source: "IMPORT" } });
+    expect(earnings).toHaveLength(2);
+    expect(earnings.map((e) => e.amountCents).sort()).toEqual([2450, 3120]);
   });
 });

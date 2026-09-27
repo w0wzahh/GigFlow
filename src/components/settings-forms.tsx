@@ -438,9 +438,8 @@ export function PrivacyPanel({ privacy }: { privacy: Record<string, unknown> }) 
 
 /* ---------------- Data ---------------- */
 
-export function DataPanel({ hasDemo }: { hasDemo: boolean }) {
+export function DataPanel() {
   const { msg, run, router } = useSave();
-  const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-4">
       <Card>
@@ -449,31 +448,6 @@ export function DataPanel({ hasDemo }: { hasDemo: boolean }) {
           <a href="/api/export" download>
             <Button variant="outline">Download JSON export</Button>
           </a>
-        </CardBody>
-      </Card>
-      <Card>
-        <CardHeader title="Demo data" subtitle="Sample records are kept fully separate from real data." />
-        <CardBody className="space-y-3">
-          <p className="text-sm text-muted">
-            {hasDemo
-              ? "Demo data is currently enabled. Removing it deletes all sample records — your real entries stay untouched."
-              : "Populate your workspace with sample trips, earnings, expenses and offers to explore GigFlow."}
-          </p>
-          <Button
-            variant={hasDemo ? "outline" : "secondary"}
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              await run(() => hasDemo
-                ? api("/api/demo", { method: "DELETE" })
-                : api("/api/demo", { method: "POST" }),
-                hasDemo ? "Demo data removed." : "Demo data created.",
-              );
-              setBusy(false);
-            }}
-          >
-            {hasDemo ? "Remove demo data" : "Generate demo data"}
-          </Button>
         </CardBody>
       </Card>
       <Card className="border-negative/40">

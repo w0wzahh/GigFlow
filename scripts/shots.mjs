@@ -25,7 +25,7 @@ await page.getByRole("button", { name: "Create account" }).click();
 await page.waitForURL(/onboarding/, { timeout: 15000 });
 await page.screenshot({ path: "shots/02-onboarding.png" });
 
-// finish onboarding with demo data
+// finish onboarding (defaults; no demo data)
 for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue" }).click();
 await page.getByRole("button", { name: "Finish setup" }).click();
 await page.waitForURL(/dashboard/, { timeout: 60000 });

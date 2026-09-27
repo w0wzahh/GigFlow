@@ -12,8 +12,9 @@ PostgreSQL for production with minimal changes.
 - Enum-like fields: constrained `String` columns (SQLite has no enums). Valid
   values are enforced by Zod schemas at the API boundary and documented below.
   On Postgres these can become real enums.
-- Soft isolation of demo data: `source: "REAL" | "DEMO"` on Earning, Expense,
-  MileageRecord, Trip, Delivery, Offer.
+- Record provenance: `source: "MANUAL" | "IMPORT" | "SYNC"` on Earning,
+  Expense, MileageRecord, Trip, Delivery, Offer. `Earning.importKey` gives
+  imported rows a stable idempotency key.
 - Cascades: everything a user owns is `onDelete: Cascade`.
 
 ## Entity map
@@ -43,7 +44,7 @@ PostgreSQL for production with minimal changes.
 ```bash
 npm run db:migrate    # dev: creates + applies a new migration
 npm run db:deploy     # prod: applies pending migrations
-npm run db:seed       # platform catalog (+ demo account with SEED_DEMO=1)
+npm run db:seed       # platform catalog
 ```
 
 ## Moving to PostgreSQL

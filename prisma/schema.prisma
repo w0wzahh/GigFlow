@@ -41,14 +41,20 @@ model User {
   preference           UserPreference?
 }
 
-// OAuth-ready account linking. No OAuth providers are enabled yet, but the
-// model exists so providers can be added without a schema migration.
+// OAuth-ready account linking. Currently used by the Gmail receipt-sync
+// integration (provider="gmail"); tokens are AES-256-GCM encrypted and only
+// ever decrypted on the server.
 model Account {
-  id                String  @id @default(cuid())
+  id                String    @id @default(cuid())
   userId            String
-  provider          String // e.g. "google", "apple"
-  providerAccountId String
-  createdAt         DateTime @default(now())
+  provider          String // e.g. "gmail", "google", "apple"
+  providerAccountId String // e.g. the connected email address
+  accessTokenEnc    String?
+  refreshTokenEnc   String?
+  tokenExpiresAt    DateTime?
+  scope             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -88,7 +94,8 @@ model VerificationToken {
 }
 
 // Catalog of gig platforms. Seeded by the app, not user-created.
-// status: AVAILABLE | COMING_SOON | UNAVAILABLE | MOCK
+// status: IMPORT (statement/receipt import supported) | MANUAL (manual
+// tracking only) | COMING_SOON | UNAVAILABLE
 // category: RIDESHARE | DELIVERY | SHOPPING | FREIGHT | OTHER
 model Platform {
   id               String  @id @default(cuid())
@@ -112,7 +119,7 @@ model PlatformConnection {
   id             String    @id @default(cuid())
   userId         String
   platformId     String
-  status         String    @default("PENDING") // CONNECTED | DISCONNECTED | ERROR | PENDING | MOCK
+  status         String    @default("PENDING") // MANUAL | CONNECTED | DISCONNECTED | ERROR | PENDING
   lastSyncAt     DateTime?
   credentialsEnc String?   // AES-256-GCM encrypted blob; never leaves the server
   lastError      String?
@@ -153,7 +160,7 @@ model Vehicle {
   @@index([userId])
 }
 
-// source: MANUAL | DEMO | SYNC
+// source: MANUAL | IMPORT | SYNC
 // status: COMPLETED | CANCELLED | IN_PROGRESS
 model Trip {
   id                   String   @id @default(cuid())
@@ -257,13 +264,17 @@ model Earning {
   hours           Float    @default(0) // hours attributable to this earning
   distanceKm      Float    @default(0)
   notes           String?
-  source          String   @default("MANUAL")
+  // Stable dedupe key for imported/synced rows (statement rows, receipt
+  // message ids). Null for manual entries.
+  importKey       String?
+  source          String   @default("MANUAL") // MANUAL | IMPORT | SYNC
   createdAt       DateTime @default(now())
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   platform Platform? @relation(fields: [platformId], references: [id], onDelete: SetNull)
 
   @@index([userId, earnedAt])
+  @@index([userId, importKey])
   @@index([platformId])
 }
 

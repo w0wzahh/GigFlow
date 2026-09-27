@@ -2,7 +2,6 @@ import { db } from "@/lib/db";
 import { periodRange, previousRange } from "@/lib/dates";
 import { summarize, platformBreakdown, dailySeries, buildInsights } from "@/lib/metrics";
 import { formatMoney, kmToUnit } from "@/lib/units";
-import { hasDemoData } from "@/lib/demo";
 
 /** Aggregated dashboard payload — used by both the page and /api/dashboard. */
 export async function getDashboardData(userId: string) {
@@ -19,7 +18,7 @@ export async function getDashboardData(userId: string) {
   const [
     todayS, weekS, monthS, prevWeekS,
     byPlatform, series, goals, connections, notifications,
-    trips, deliveries, expenses, demo,
+    trips, deliveries, expenses,
   ] = await Promise.all([
     summarize(userId, { range: today }),
     summarize(userId, { range: week }),
@@ -41,7 +40,6 @@ export async function getDashboardData(userId: string) {
       orderBy: { startedAt: "desc" }, take: 10,
     }),
     db.expense.findMany({ where: { userId }, orderBy: { occurredAt: "desc" }, take: 10 }),
-    hasDemoData(userId),
   ]);
 
   const goalsWithProgress = await Promise.all(
@@ -89,7 +87,6 @@ export async function getDashboardData(userId: string) {
     activity,
     unreadNotifications: notifications,
     insights: buildInsights(weekS, prevWeekS, (c) => formatMoney(c, currency)),
-    hasDemoData: demo,
   };
 }
 

@@ -82,11 +82,13 @@ export function OffersView({
         actions={<Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Log offer</Button>}
       />
 
-      <div className="flex gap-1.5 flex-wrap" role="tablist" aria-label="Filter offers">
+      <div className="segmented flex-wrap" role="tablist" aria-label="Filter offers">
         {["ALL", "PENDING", "ACCEPTED", "DECLINED", "EXPIRED"].map((s) => (
           <button
             key={s} role="tab" aria-selected={filter === s} onClick={() => setFilter(s)}
-            className={`px-2.5 h-7 rounded-md text-xs font-medium border ${filter === s ? "border-accent bg-accent-soft text-accent" : "border-border text-muted"}`}
+            className={`px-3.5 h-8 text-[13px] font-medium transition-colors ${
+              filter === s ? "bg-elevated text-fg shadow-[var(--shadow-card)]" : "text-muted hover:text-fg"
+            }`}
           >
             {s === "ALL" ? "All" : s[0] + s.slice(1).toLowerCase()}
           </button>
@@ -116,7 +118,8 @@ export function OffersView({
                       </p>
                       <p className="text-[11px] text-faint">
                         {o.platform?.name ?? "Unknown"} · {formatDateTime(o.receivedAt)}
-                        {o.source === "DEMO" && <Badge tone="accent" className="ml-1.5">demo</Badge>}
+                        {o.source === "IMPORT" && <Badge tone="accent" className="ml-1.5">import</Badge>}
+                        {o.source === "SYNC" && <Badge tone="accent" className="ml-1.5">sync</Badge>}
                       </p>
                     </div>
                   </div>

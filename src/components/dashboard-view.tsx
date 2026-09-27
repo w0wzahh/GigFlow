@@ -27,7 +27,6 @@ export type DashboardData = {
   connections: { id: string; status: string; lastSyncAt: Date | string | null; platform: { name: string; color: string; key: string; status: string } }[];
   activity: { type: "TRIP" | "DELIVERY" | "EXPENSE"; at: Date | string; record: Record<string, unknown> }[];
   insights: string[];
-  hasDemoData: boolean;
 };
 
 type Option = { id: string; name?: string; nickname?: string };
@@ -52,10 +51,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted mt-0.5">Your gig work at a glance.</p>
+          <h1 className="text-[26px] sm:text-[30px] font-bold tracking-tight leading-tight">Dashboard</h1>
+          <p className="text-[15px] text-muted mt-1">Your gig work at a glance.</p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setModal("work")}><Plus size={14} /> Log work</Button>
@@ -70,23 +69,29 @@ export function DashboardView({ data }: { data: DashboardData }) {
             <EmptyState
               icon={<TrendingUp size={28} />}
               title="Nothing tracked yet"
-              body="Log your first trip or expense — or enable demo data from Settings → Data to explore a populated workspace."
+              body="Log your first trip or expense — or import an earnings statement from the Platforms page to populate your workspace."
               action={<Button size="sm" onClick={() => setModal("work")}><Plus size={14} /> Log your first trip</Button>}
             />
           </CardBody>
         </Card>
       )}
 
-      {/* Top-line stats */}
+      {/* Top-line stats — staggered entrance */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card><CardBody><Stat label="Today" value={money(data.today.grossCents)} sub="gross" /></CardBody></Card>
-        <Card><CardBody><Stat label="This week" value={money(data.week.grossCents)} sub={`net ${money(data.week.netCents)}`} /></CardBody></Card>
-        <Card><CardBody><Stat label="This month" value={money(data.month.grossCents)} sub={`net ${money(data.month.netCents)}`} /></CardBody></Card>
-        <Card><CardBody><Stat label="Est. profit this week" value={money(data.week.netCents)} sub={`expenses ${money(data.week.expensesCents)}`} /></CardBody></Card>
+        {[
+          { label: "Today", value: money(data.today.grossCents), sub: "gross" },
+          { label: "This week", value: money(data.week.grossCents), sub: `net ${money(data.week.netCents)}` },
+          { label: "This month", value: money(data.month.grossCents), sub: `net ${money(data.month.netCents)}` },
+          { label: "Est. profit this week", value: money(data.week.netCents), sub: `expenses ${money(data.week.expensesCents)}` },
+        ].map((s, i) => (
+          <Card key={s.label} className="animate-fade-up" style={{ animationDelay: `${i * 70}ms` }}>
+            <CardBody><Stat label={s.label} value={s.value} sub={s.sub} /></CardBody>
+          </Card>
+        ))}
       </div>
 
       {/* Efficiency metrics */}
-      <Card>
+      <Card className="animate-fade-up" style={{ animationDelay: "300ms" }}>
         <CardBody>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <Stat label="Hours worked (week)" value={data.week.hours > 0 ? data.week.hours.toFixed(1) : "—"} />
@@ -100,7 +105,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Earnings trend */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 animate-fade-up" style={{ animationDelay: "360ms" }}>
           <CardHeader title="Earnings trend" subtitle="Gross per day — last 30 days with data" />
           <CardBody>
             {data.series.length ? (
@@ -112,7 +117,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </Card>
 
         {/* Goals */}
-        <Card>
+        <Card className="animate-fade-up" style={{ animationDelay: "420ms" }}>
           <CardHeader title="Goals" subtitle="Progress against your targets" />
           <CardBody className="space-y-4">
             {data.goals.length === 0 ? (
@@ -185,8 +190,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <li key={c.id} className="flex items-center gap-3 py-2.5">
                     <PlatformDot name={c.platform.name} color={c.platform.color} size={24} />
                     <span className="text-sm flex-1 truncate">{c.platform.name}</span>
-                    <Badge tone={c.status === "CONNECTED" ? "positive" : c.status === "MOCK" ? "accent" : c.status === "ERROR" ? "negative" : "neutral"}>
-                      {c.status === "MOCK" ? "Demo" : c.status === "MANUAL" ? "Manual" : c.status.toLowerCase()}
+                    <Badge tone={c.status === "CONNECTED" ? "positive" : c.status === "ERROR" ? "negative" : "neutral"}>
+                      {c.status === "MANUAL" ? "Manual" : c.status.toLowerCase()}
                     </Badge>
                   </li>
                 ))}
@@ -197,7 +202,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       </div>
 
       {/* Recent activity */}
-      <Card>
+      <Card className="animate-fade-up" style={{ animationDelay: "500ms" }}>
         <CardHeader title="Recent activity" subtitle="Latest trips, deliveries and expenses" />
         <CardBody>
           {data.activity.length === 0 ? (
@@ -219,8 +224,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
                         {isExpense
                           ? `${(r.category as string).replace(/_/g, " ").toLowerCase()} expense`
                           : `${a.type === "TRIP" ? "Trip" : "Delivery"}${platform ? ` · ${platform.name}` : ""}`}
-                        {typeof r.source === "string" && r.source === "DEMO" && (
-                          <Badge tone="accent" className="ml-2">demo</Badge>
+                        {typeof r.source === "string" && (r.source === "IMPORT" || r.source === "SYNC") && (
+                          <Badge tone="accent" className="ml-2">{r.source === "IMPORT" ? "import" : "sync"}</Badge>
                         )}
                       </p>
                       <p className="text-xs text-faint">{formatDateTime(a.at)}</p>

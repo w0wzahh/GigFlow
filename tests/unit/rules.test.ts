@@ -35,7 +35,7 @@ describe("computeOfferMetrics", () => {
 
 describe("evaluateCondition", () => {
   const metrics = computeOfferMetrics({
-    payoutCents: 1500, estDistanceKm: 10, estDurationMin: 30, platformName: "Demo Provider",
+    payoutCents: 1500, estDistanceKm: 10, estDurationMin: 30, platformName: "Uber",
   });
   it("evaluates numeric comparisons", () => {
     expect(evaluateCondition(metrics, { field: "earnings_per_hour_cents", op: "gte", value: 2500 })).toBe(true);
@@ -43,9 +43,9 @@ describe("evaluateCondition", () => {
     expect(evaluateCondition(metrics, { field: "est_distance_km", op: "lte", value: 12 })).toBe(true);
   });
   it("evaluates string comparisons (platform)", () => {
-    expect(evaluateCondition(metrics, { field: "platform_name", op: "eq", value: "demo provider" })).toBe(true);
-    expect(evaluateCondition(metrics, { field: "platform_name", op: "contains", value: "demo" })).toBe(true);
-    expect(evaluateCondition(metrics, { field: "platform_name", op: "eq", value: "uber" })).toBe(false);
+    expect(evaluateCondition(metrics, { field: "platform_name", op: "eq", value: "uber" })).toBe(true);
+    expect(evaluateCondition(metrics, { field: "platform_name", op: "contains", value: "ube" })).toBe(true);
+    expect(evaluateCondition(metrics, { field: "platform_name", op: "eq", value: "lyft" })).toBe(false);
   });
   it("fails closed when a metric is unavailable", () => {
     const m = computeOfferMetrics({ payoutCents: 100, estDistanceKm: 0, estDurationMin: 0 });

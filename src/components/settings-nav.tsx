@@ -20,7 +20,7 @@ export function SettingsNav() {
   return (
     <nav
       aria-label="Settings"
-      className="flex md:flex-col gap-1 md:w-44 shrink-0 overflow-x-auto md:overflow-visible pb-1 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0"
+      className="flex md:flex-col gap-1 md:w-44 shrink-0 overflow-x-auto md:overflow-visible pb-1 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 md:[&>*]:rounded-xl md:bg-transparent"
     >
       {ITEMS.map((i) => (
         <Link
@@ -28,8 +28,9 @@ export function SettingsNav() {
           href={i.href}
           aria-current={pathname === i.href ? "page" : undefined}
           className={cn(
-            "rounded-lg px-3 h-9 inline-flex items-center text-sm whitespace-nowrap",
-            pathname === i.href ? "bg-accent-soft text-accent font-medium" : "text-muted hover:text-fg hover:bg-subtle",
+            "rounded-full px-3.5 h-9 inline-flex items-center text-sm whitespace-nowrap",
+            "transition-[background-color,color] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
+            pathname === i.href ? "bg-elevated text-fg font-semibold shadow-[var(--shadow-card)]" : "text-muted hover:text-fg",
           )}
         >
           {i.label}

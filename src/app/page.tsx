@@ -21,7 +21,7 @@ const features = [
 
 const steps = [
   { n: "1", title: "Create your account", body: "Sign up, set your currency, units and the platforms you drive for." },
-  { n: "2", title: "Track your work", body: "Log trips, deliveries, expenses and mileage — or explore instantly with demo data." },
+  { n: "2", title: "Track your work", body: "Log trips, deliveries, expenses and mileage — or import an earnings statement to fill in history." },
   { n: "3", title: "Set your rules", body: "Tell GigFlow what a worthwhile offer looks like: minimum $/mile, $/hour, payout." },
   { n: "4", title: "Optimize", body: "Use analytics and goal tracking to work the hours, zones and platforms that pay best." },
 ];
@@ -41,11 +41,11 @@ const faqs = [
   },
   {
     q: "What happens to my data?",
-    a: "Your data is yours. You can export everything as JSON at any time, delete demo data separately, or delete your account entirely. We don't sell or share your data.",
+    a: "Your data is yours. You can export everything as JSON at any time, or delete your account — which removes all associated records. We don't sell or share your data.",
   },
   {
     q: "Can I try it without connecting anything?",
-    a: "Yes — enable demo mode during onboarding to explore a fully-populated workspace with clearly-marked sample data. Remove it any time from Settings → Data.",
+    a: "Yes — GigFlow works entirely with data you control. Log work manually, import a CSV statement exported from your platform's driver portal, or sync Gmail receipts. No platform credentials required.",
   },
   {
     q: "How much does it cost?",
@@ -60,7 +60,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-dvh">
       {/* Nav */}
-      <header className="sticky top-0 z-40 border-b border-border bg-bg/85 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-border glass">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between">
           <Logo />
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted">
@@ -79,24 +79,24 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="border-b border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 text-center">
-          <p className="inline-flex items-center gap-2 text-xs font-medium text-accent bg-accent-soft rounded-full px-3 py-1 mb-6">
+          <p className="inline-flex items-center gap-2 text-xs font-medium text-accent bg-accent-soft rounded-full px-3 py-1 mb-6 animate-fade-up">
             <Zap size={12} /> One workspace for every gig platform
           </p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight max-w-3xl mx-auto text-balance">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight max-w-3xl mx-auto text-balance animate-fade-up" style={{ animationDelay: "80ms" }}>
             Your gig work. <span className="text-accent">One flow.</span>
           </h1>
-          <p className="mt-5 text-base sm:text-lg text-muted max-w-xl mx-auto text-balance">
+          <p className="mt-5 text-base sm:text-lg text-muted max-w-xl mx-auto text-balance animate-fade-up" style={{ animationDelay: "160ms" }}>
             GigFlow brings rideshare and delivery work into a single workspace —
             track earnings, expenses and mileage, evaluate every offer, and see
             what your time is really worth.
           </p>
-          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
+          <div className="mt-8 flex items-center justify-center gap-3 flex-wrap animate-fade-up" style={{ animationDelay: "240ms" }}>
             <Link href="/register"><Button size="lg">Get Started <ArrowRight size={16} /></Button></Link>
             <a href="#how"><Button size="lg" variant="outline">See How It Works</Button></a>
           </div>
 
           {/* Dashboard preview */}
-          <div className="mt-14 mx-auto max-w-4xl rounded-xl border border-border bg-elevated shadow-lg overflow-hidden text-left" aria-hidden="true">
+          <div className="mt-14 mx-auto max-w-4xl rounded-2xl border border-border bg-elevated shadow-[var(--shadow-raised)] overflow-hidden text-left animate-fade-up transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:scale-[1.01]" aria-hidden="true" style={{ animationDelay: "340ms" }}>
             <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border">
               <span className="w-2.5 h-2.5 rounded-full bg-border-strong" />
               <span className="w-2.5 h-2.5 rounded-full bg-border-strong" />
@@ -107,22 +107,22 @@ export default function LandingPage() {
               {[
                 ["Today", "$186.40"], ["This week", "$742.10"], ["$/hour", "$27.30"], ["$/mile", "$1.94"],
               ].map(([k, v]) => (
-                <div key={k} className="rounded-lg border border-border bg-subtle/50 p-3">
-                  <p className="text-[11px] text-muted">{k}</p>
-                  <p className="text-lg sm:text-xl font-semibold tabular-nums mt-0.5">{v}</p>
+                <div key={k} className="rounded-xl bg-subtle/70 p-3.5">
+                  <p className="text-[11px] font-medium text-muted">{k}</p>
+                  <p className="text-lg sm:text-xl font-bold tabular-nums mt-1">{v}</p>
                 </div>
               ))}
-              <div className="col-span-2 sm:col-span-3 rounded-lg border border-border p-3">
-                <p className="text-[11px] text-muted mb-2">Earnings — last 14 days <span className="text-faint">(sample)</span></p>
+              <div className="col-span-2 sm:col-span-3 rounded-xl bg-subtle/70 p-3.5">
+                <p className="text-[11px] font-medium text-muted mb-2">Earnings — last 14 days <span className="text-faint">(illustration)</span></p>
                 <svg viewBox="0 0 300 60" className="w-full h-14" preserveAspectRatio="none">
                   <path d="M0 48 L25 40 L50 44 L75 30 L100 36 L125 22 L150 28 L175 18 L200 24 L225 14 L250 20 L275 10 L300 14" fill="none" stroke="var(--accent)" strokeWidth="2" />
                   <path d="M0 48 L25 40 L50 44 L75 30 L100 36 L125 22 L150 28 L175 18 L200 24 L225 14 L250 20 L275 10 L300 14 L300 60 L0 60 Z" fill="var(--accent)" opacity="0.12" />
                 </svg>
               </div>
-              <div className="col-span-2 sm:col-span-1 rounded-lg border border-border p-3">
-                <p className="text-[11px] text-muted mb-1.5">Weekly goal</p>
-                <p className="text-sm font-semibold tabular-nums">$742 / $1,000</p>
-                <div className="h-1.5 rounded-full bg-subtle mt-2"><div className="h-full w-[74%] rounded-full bg-accent" /></div>
+              <div className="col-span-2 sm:col-span-1 rounded-xl bg-subtle/70 p-3.5">
+                <p className="text-[11px] font-medium text-muted mb-1.5">Weekly goal</p>
+                <p className="text-sm font-bold tabular-nums">$742 / $1,000</p>
+                <div className="h-2 rounded-full bg-border mt-2.5"><div className="h-full w-[74%] rounded-full bg-accent" /></div>
               </div>
             </div>
           </div>
@@ -137,10 +137,14 @@ export default function LandingPage() {
             GigFlow works with any platform through manual tracking today. Automatic sync is added per-platform where an official API exists — and clearly marked where it does not.
           </p>
           <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {[...connectable, ...manual].map((p) => (
-              <div key={p.key} className="rounded-lg border border-border bg-elevated p-3.5 flex items-center gap-3">
+            {[...connectable, ...manual].map((p, i) => (
+              <div
+                key={p.key}
+                className="rounded-2xl border border-border bg-elevated shadow-[var(--shadow-card)] p-3.5 flex items-center gap-3 animate-fade-up transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
                 <span
-                  className="w-8 h-8 rounded-md text-white text-xs font-semibold inline-flex items-center justify-center shrink-0"
+                  className="w-9 h-9 rounded-xl text-white text-xs font-bold inline-flex items-center justify-center shrink-0 shadow-[var(--shadow-card)]"
                   style={{ backgroundColor: p.color }}
                 >
                   {p.name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
@@ -148,7 +152,7 @@ export default function LandingPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{p.name}</p>
                   <p className="text-[11px] text-faint">
-                    {p.status === "MOCK" ? "Demo data" : p.status === "AVAILABLE" ? "Manual tracking" : p.status === "COMING_SOON" ? "Coming soon" : "Manual tracking"}
+                    {p.status === "IMPORT" ? "Statement import" : p.status === "COMING_SOON" ? "Coming soon" : "Manual tracking"}
                   </p>
                 </div>
               </div>
@@ -165,9 +169,15 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center">Everything in one place</h2>
           <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {features.map((f) => (
-              <div key={f.title} className="rounded-xl border border-border bg-elevated p-5">
-                <f.icon size={20} className="text-accent" />
+            {features.map((f, i) => (
+              <div
+                key={f.title}
+                className="rounded-2xl border border-border bg-elevated shadow-[var(--shadow-card)] p-5 animate-fade-up transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] hover:shadow-[var(--shadow-raised)] hover:-translate-y-0.5"
+                style={{ animationDelay: `${i * 45}ms` }}
+              >
+                <span className="w-9 h-9 rounded-xl bg-accent-soft text-accent inline-flex items-center justify-center">
+                  <f.icon size={18} />
+                </span>
                 <h3 className="text-sm font-semibold mt-3">{f.title}</h3>
                 <p className="text-sm text-muted mt-1.5 leading-relaxed">{f.body}</p>
               </div>
@@ -181,9 +191,9 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center">How it works</h2>
           <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {steps.map((s) => (
-              <div key={s.n} className="rounded-xl border border-border bg-elevated p-5">
-                <span className="w-7 h-7 rounded-full bg-accent-soft text-accent text-xs font-bold inline-flex items-center justify-center">{s.n}</span>
+            {steps.map((s, i) => (
+              <div key={s.n} className="rounded-2xl border border-border bg-elevated shadow-[var(--shadow-card)] p-5 animate-fade-up" style={{ animationDelay: `${i * 70}ms` }}>
+                <span className="w-7 h-7 rounded-full bg-accent text-accent-fg text-xs font-bold inline-flex items-center justify-center shadow-[var(--shadow-card)]">{s.n}</span>
                 <h3 className="text-sm font-semibold mt-3">{s.title}</h3>
                 <p className="text-sm text-muted mt-1.5 leading-relaxed">{s.body}</p>
               </div>
@@ -215,7 +225,7 @@ export default function LandingPage() {
                 cta: "Coming soon", primary: false,
               },
             ].map((t) => (
-              <div key={t.name} className={`rounded-xl border p-6 bg-elevated ${t.primary ? "border-accent" : "border-border"}`}>
+              <div key={t.name} className={`rounded-2xl border p-6 bg-elevated shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-200 hover:shadow-[var(--shadow-raised)] ${t.primary ? "border-accent ring-1 ring-accent/20" : "border-border"}`}>
                 <h3 className="text-sm font-semibold">{t.name}</h3>
                 <p className="mt-2 text-3xl font-semibold tracking-tight">{t.price}</p>
                 <p className="text-xs text-faint mt-1">{t.note}</p>
@@ -243,10 +253,10 @@ export default function LandingPage() {
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center">Frequently asked questions</h2>
           <div className="mt-10 space-y-3">
             {faqs.map((f) => (
-              <details key={f.q} className="rounded-xl border border-border bg-elevated px-5 py-4 group">
-                <summary className="text-sm font-medium cursor-pointer list-none flex justify-between items-center">
+              <details key={f.q} className="rounded-2xl border border-border bg-elevated shadow-[var(--shadow-card)] px-5 py-4 group transition-[box-shadow] duration-200 open:shadow-[var(--shadow-raised)]">
+                <summary className="text-[15px] font-medium cursor-pointer list-none flex justify-between items-center gap-3">
                   {f.q}
-                  <span className="text-faint group-open:rotate-45 transition-transform text-lg leading-none">+</span>
+                  <span className="w-6 h-6 rounded-full bg-subtle text-faint inline-flex items-center justify-center shrink-0 group-open:rotate-45 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] text-sm leading-none">+</span>
                 </summary>
                 <p className="text-sm text-muted mt-3 leading-relaxed">{f.a}</p>
               </details>

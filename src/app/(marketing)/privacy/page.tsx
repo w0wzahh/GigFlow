@@ -22,12 +22,8 @@ const sections = [
     body: "Where a platform offers an official integration, credentials are encrypted at rest (AES-256-GCM) and never exposed to the browser. Where no API exists, GigFlow uses manual tracking instead — we never scrape or bypass platform protections.",
   },
   {
-    h: "Demo data",
-    body: "Demo mode generates clearly-marked sample records. Demo data is fully separated from real data and can be deleted independently.",
-  },
-  {
     h: "Your controls",
-    body: "Export everything as JSON, delete demo data, or delete your entire account — which removes all associated records — from Settings → Data.",
+    body: "Export everything as JSON, or delete your entire account — which removes all associated records — from Settings → Data.",
   },
   {
     h: "Contact",

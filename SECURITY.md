@@ -21,7 +21,8 @@ vulnerabilities. We aim to acknowledge reports within 72 hours.
   No credentials are ever serialized to the browser or included in exports.
 - Injection: all queries go through Prisma; the one raw aggregate query uses
   parameterized bindings only.
-- Demo data cannot impersonate real data (`source` column; UI badges).
+- Record provenance is explicit (`source: MANUAL | IMPORT | SYNC`); OAuth tokens
+  for Gmail sync are stored AES-256-GCM-encrypted and never leave the server.
 
 ## Known limitations / roadmap
 
