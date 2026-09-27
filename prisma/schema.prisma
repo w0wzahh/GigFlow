@@ -23,6 +23,11 @@ model User {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
+  // Companion-app (Android) bearer token — SHA-256 hash only, the plaintext
+  // is shown once at generation and never stored.
+  mobileTokenHash      String?
+  mobileTokenCreatedAt DateTime?
+
   accounts             Account[]
   sessions             Session[]
   verificationTokens   VerificationToken[]

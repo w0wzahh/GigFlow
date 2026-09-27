@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GigFlow Driver</string>
+    <string name="service_label">GigFlow Offer Assistant</string>
+    <string name="service_description">Reads offer cards shown by rideshare and delivery apps and evaluates them against your GigFlow rules. Optionally taps accept or decline when automation is enabled. GigFlow only acts inside the driver apps you choose, never touches other apps, and performs no action unless you enable it.</string>
+    <string name="service_summary">Scores incoming gig offers on-screen</string>
+
+    <string-array name="watched_packages">
+        <item>com.uber.driver</item>
+        <item>com.lyft.driver</item>
+        <item>com.doordash.driverapp</item>
+        <item>com.instacart.shopper</item>
+        <item>com.amazon.rabbit</item>
+        <item>com.walmart.driver.spark</item>
+    </string-array>
+</resources>

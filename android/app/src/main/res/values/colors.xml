@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#F4F5F7</color>
+    <color name="elevated">#FFFFFF</color>
+    <color name="fg">#16181D</color>
+    <color name="muted">#5D6472</color>
+    <color name="accent">#0B8A80</color>
+    <color name="accent_fg">#FFFFFF</color>
+    <color name="positive">#16915A</color>
+    <color name="negative">#D2432E</color>
+    <color name="warning">#B07A0D</color>
+</resources>

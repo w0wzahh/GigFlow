@@ -47,3 +47,10 @@ next-env.d.ts
 /e2e.db
 /prisma/*.db
 /prisma/*.db-journal
+
+# android
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/.gradle/
+*.apk

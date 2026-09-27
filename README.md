@@ -106,6 +106,17 @@ Everything else is manual tracking, clearly labeled. A `PlatformIntegration`
 adapter interface + registry is ready for any official API that appears.
 Details: `docs/integrations.md`.
 
+### Android companion
+
+`android/` contains **GigFlow Driver**, a dependency-free Kotlin app that uses
+Android's `AccessibilityService` to read offer cards on-screen in driver apps,
+scores them against your thresholds, shows a floating verdict card, and can
+optionally tap accept/decline — the same approach Mystro uses. Scored offers
+sync to the web app via `POST /api/mobile/offers` using a bearer token from
+**Settings → Security → Android companion app**. Build with
+`gradle assembleDebug`; see `android/README.md` for setup, permissions, and
+honest limitations (heuristic parsing, opt-in automation, Play-policy notes).
+
 ## Security
 
 - scrypt password hashing (salted), timing-safe compare

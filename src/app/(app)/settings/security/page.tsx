@@ -11,8 +11,13 @@ export default async function SecurityPage() {
     where: { userId: user.id, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
   });
+  const row = await db.user.findUnique({
+    where: { id: user.id },
+    select: { mobileTokenCreatedAt: true },
+  });
   return (
     <SecurityPanel
+      mobileTokenCreatedAt={row?.mobileTokenCreatedAt?.toISOString() ?? null}
       sessions={sessions.map((s) => ({
         id: s.id, ip: s.ip, userAgent: s.userAgent,
         createdAt: s.createdAt.toISOString(), current: s.id === user.sessionId,

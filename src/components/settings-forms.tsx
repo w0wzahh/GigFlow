@@ -341,8 +341,9 @@ export function NotificationPrefs({ prefs }: { prefs: Record<string, boolean> })
 
 /* ---------------- Security ---------------- */
 
-export function SecurityPanel({ sessions }: {
+export function SecurityPanel({ sessions, mobileTokenCreatedAt }: {
   sessions: { id: string; ip: string | null; userAgent: string | null; createdAt: string; current: boolean }[];
+  mobileTokenCreatedAt: string | null;
 }) {
   const { msg, run } = useSave();
   return (
@@ -387,7 +388,66 @@ export function SecurityPanel({ sessions }: {
           <Msg msg={msg} />
         </CardBody>
       </Card>
+      <MobileTokenCard createdAt={mobileTokenCreatedAt} />
     </div>
+  );
+}
+
+/* ---------------- Companion app ---------------- */
+
+function MobileTokenCard({ createdAt }: { createdAt: string | null }) {
+  const { msg, run } = useSave();
+  const [token, setToken] = useState<string | null>(null);
+  const [hasToken, setHasToken] = useState(createdAt !== null);
+  const [created, setCreated] = useState(createdAt);
+  const [copied, setCopied] = useState(false);
+  return (
+    <Card>
+      <CardHeader
+        title="Android companion app"
+        subtitle="Lets the GigFlow Offer Assistant on your phone push scored offers into this workspace."
+      />
+      <CardBody className="space-y-3">
+        {token ? (
+          <div className="space-y-2">
+            <p className="text-sm text-muted">
+              Paste this token into the app — it is shown once and cannot be retrieved later.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 min-w-0 truncate rounded-lg bg-fill px-3 py-2 text-xs select-all">{token}</code>
+              <Button
+                size="sm" variant="secondary"
+                onClick={() => { void navigator.clipboard.writeText(token).then(() => { setCopied(true); }); }}
+              >{copied ? "Copied" : "Copy"}</Button>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setToken(null)}>Done</Button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => run(async () => {
+              const res = await api<{ token: string }>("/api/account/mobile-token", { method: "POST" });
+              setToken(res.token); setHasToken(true); setCreated(new Date().toISOString());
+              return Promise.resolve();
+            }, "Token generated.")}>
+              {hasToken ? "Regenerate token" : "Generate token"}
+            </Button>
+            {hasToken && (
+              <Button variant="ghost" onClick={() => run(async () => {
+                await api("/api/account/mobile-token", { method: "DELETE" });
+                setHasToken(false); setCreated(null); setToken(null);
+              }, "Token revoked.")}>Revoke</Button>
+            )}
+            {hasToken && created && (
+              <span className="text-xs text-faint">Active · issued {formatDateTime(created)}</span>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-faint">
+          Revoking signs the app out immediately. The token can only push offer observations — it cannot read your data or change settings.
+        </p>
+        <Msg msg={msg} />
+      </CardBody>
+    </Card>
   );
 }
 

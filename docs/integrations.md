@@ -29,13 +29,15 @@ This approach:
 - has been criticized by Google as a misuse of accessibility APIs;
 - automating another app's UI can conflict with that platform's terms.
 
+GigFlow ships its own companion for this — see **Android companion** below.
+
 Products like **Gridwise** sync earnings by storing your platform credentials
 and logging in as you server-side — brittle (connections break often) and a
 terms-of-service gray area. GigFlow does **not** store platform passwords.
 
 ## What GigFlow implements instead
 
-Three real, user-controlled data paths — nothing simulated:
+Four real, user-controlled data paths — nothing simulated:
 
 ### 1. CSV statement import (`src/lib/import.ts`)
 
@@ -71,6 +73,30 @@ OAuth consent (`gmail.readonly`, revocable from Google Account settings):
 Every platform in the catalog is trackable manually. Connections on
 manual-only platforms get status `MANUAL` — the UI says "Manual tracking",
 never "Connected".
+
+### 4. Android companion (`android/`)
+
+`GigFlow Driver` is a native Kotlin app using `AccessibilityService` — the
+same class of API as Mystro — with no third-party dependencies:
+
+- `OfferParser.kt` reads offer cards (payout, distance, duration,
+  accept/decline affordances) from the driver apps' view trees using textual
+  patterns, not view IDs
+- `RuleEngine.kt` scores offers locally ($/mi, $/hr, payout floor, max
+  distance) — same semantics as `src/lib/rules/engine.ts`
+- `OverlayController.kt` floats a verdict card over the driver app using a
+  `TYPE_ACCESSIBILITY_OVERLAY` window (no `SYSTEM_ALERT_WINDOW` permission)
+- `GesturePerformer.kt` taps accept/decline via `dispatchGesture` — only when
+  the user enabled the corresponding switch
+- `GigFlowApi.kt` pushes distilled offer fields (never screen content) to
+  `POST /api/mobile/offers`, authenticated by a per-user bearer token whose
+  SHA-256 hash is stored on `User.mobileTokenHash`
+- Tokens are generated/revoked in Settings → Security; pushed offers land in
+  the Offers feed with `source: "COMPANION"`
+
+Caveats: driver-app layouts change, parsing is heuristic, automation is
+opt-in only, and Google Play policy restricts accessibility services that
+aren't assistive tools — the APK is sideloaded. See `android/README.md`.
 
 ## Catalog statuses
 

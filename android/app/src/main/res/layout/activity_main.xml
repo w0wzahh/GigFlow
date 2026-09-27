@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp"
+        android:paddingTop="40dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="@color/fg" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Reads offer cards in your driver apps and scores them against your rules."
+            android:textSize="14sp"
+            android:textColor="@color/muted" />
+
+        <!-- Setup status -->
+        <LinearLayout
+            android:id="@+id/setupCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="20dp"
+            android:padding="16dp"
+            android:background="@drawable/card_bg">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/fg" />
+
+            <TextView
+                android:id="@+id/statusSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="13sp"
+                android:textColor="@color/muted" />
+
+            <Button
+                android:id="@+id/enableBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Enable accessibility service" />
+        </LinearLayout>
+
+        <!-- Master switch -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="14dp"
+            android:padding="16dp"
+            android:background="@drawable/card_bg">
+
+            <Switch
+                android:id="@+id/enabledSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Offer assistant on"
+                android:textSize="15sp" />
+
+            <Switch
+                android:id="@+id/autoAcceptSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Auto-accept good offers"
+                android:textSize="14sp" />
+
+            <Switch
+                android:id="@+id/autoDeclineSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Auto-decline bad offers"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Rules -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="14dp"
+            android:padding="16dp"
+            android:background="@drawable/card_bg">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="A good offer is…"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/fg" />
+
+            <EditText
+                    android:id="@+id/minPerMileInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal" 
+                    android:hint="Min $/mile" />
+
+            <EditText
+                    android:id="@+id/minPerHourInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal" 
+                    android:hint="Min $/hour" />
+
+            <EditText
+                    android:id="@+id/minPayoutInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal" 
+                    android:hint="Min payout ($)" />
+
+            <EditText
+                    android:id="@+id/maxDistanceInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal" 
+                    android:hint="Max distance (miles)" />
+
+            <Button
+                android:id="@+id/saveRulesBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Save rules" />
+        </LinearLayout>
+
+        <!-- Sync -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="14dp"
+            android:padding="16dp"
+            android:background="@drawable/card_bg">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sync to GigFlow web (optional)"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/fg" />
+
+            <EditText
+                    android:id="@+id/syncUrlInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri" 
+                    android:hint="Web app URL" />
+
+            <EditText
+                    android:id="@+id/syncTokenInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword" 
+                    android:hint="Mobile token (Settings → Security)" />
+
+            <Button
+                android:id="@+id/saveSyncBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Save sync settings" />
+        </LinearLayout>
+
+        <!-- Offer log -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="14dp"
+            android:padding="16dp"
+            android:background="@drawable/card_bg">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="Recent offers"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/fg" />
+
+                <Button
+                    android:id="@+id/clearLogBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clear"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/logList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="20dp"
+            android:textSize="11sp"
+            android:textColor="@color/muted"
+            android:text="GigFlow Driver reads only the driver apps listed in the accessibility settings and only acts when you enable automation. On-screen content never leaves your phone; only distilled offer values sync if you set them up. Independent tool — not affiliated with any platform." />
+    </LinearLayout>
+</ScrollView>
