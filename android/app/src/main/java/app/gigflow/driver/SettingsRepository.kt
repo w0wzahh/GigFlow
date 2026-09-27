@@ -36,6 +36,21 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat("max_distance_km", 40f).toDouble()
         set(v) = prefs.edit().putFloat("max_distance_km", v.toFloat()).apply()
 
+    /** Display unit: "MI" or "KM". */
+    var distanceUnit: String
+        get() = prefs.getString("distance_unit", "MI") ?: "MI"
+        set(v) = prefs.edit().putString("distance_unit", v).apply()
+
+    /** Seconds the verdict overlay stays on screen; 0 = until the card disappears. */
+    var overlaySeconds: Int
+        get() = prefs.getInt("overlay_seconds", 0)
+        set(v) = prefs.edit().putInt("overlay_seconds", v).apply()
+
+    /** Haptic feedback on taps/toggles. */
+    var haptics: Boolean
+        get() = prefs.getBoolean("haptics", true)
+        set(v) = prefs.edit().putBoolean("haptics", v).apply()
+
     /** GigFlow web app base URL, e.g. https://app.gigflow.example — empty = off. */
     var syncBaseUrl: String
         get() = prefs.getString("sync_base_url", "") ?: ""
@@ -54,5 +69,6 @@ class SettingsRepository(context: Context) {
         minPerHourCents = minPerHourCents,
         minPayoutCents = minPayoutCents,
         maxDistanceKm = maxDistanceKm,
+        overlaySeconds = overlaySeconds,
     )
 }

@@ -438,7 +438,7 @@ class TabBar(ctx: Context, private val p: Palette) : FrameLayout(ctx) {
         tabs.forEachIndexed { i, tab ->
             val cell = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
+                gravity = Gravity.CENTER_HORIZONTAL
                 setPadding(0, dp(context, 6f), 0, dp(context, 5f))
                 pressable(0.92f)
                 setOnClickListener { select(i) }
@@ -449,11 +449,14 @@ class TabBar(ctx: Context, private val p: Palette) : FrameLayout(ctx) {
             val label = TextView(context).apply {
                 text = tab.label
                 textSize = 10f
+                gravity = Gravity.CENTER
                 setTextColor(p.gray)
                 setPadding(0, dp(context, 2f), 0, 0)
             }
-            cell.addView(icon.lp(dp(context, 24f), dp(context, 24f)))
-            cell.addView(label)
+            cell.addView(icon, LinearLayout.LayoutParams(
+                dp(context, 24f), dp(context, 24f)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+            cell.addView(label, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             row.addView(cell, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
             cells.add(cell)
         }

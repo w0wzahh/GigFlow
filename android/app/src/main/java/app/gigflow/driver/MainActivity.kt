@@ -85,11 +85,14 @@ class MainActivity : Activity() {
         refresh(i)
     }
 
-    private fun refresh(i: Int) = when (i) {
-        0 -> dashboard.refresh()
-        1 -> offers.refresh()
-        2 -> track.refresh()
-        else -> assist.refresh()
+    private fun refresh(i: Int): Unit {
+        Ios.hapticsEnabled = settings.haptics
+        return when (i) {
+            0 -> dashboard.refresh()
+            1 -> offers.refresh()
+            2 -> track.refresh()
+            else -> assist.refresh()
+        }
     }
 
     override fun onResume() {

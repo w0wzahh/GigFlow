@@ -31,10 +31,14 @@ class AssistScreen(
         c.addView(automationCard())
         c.addView(Sections.header(ctx, p, "Offer rules"))
         c.addView(rulesCard())
+        c.addView(Sections.header(ctx, p, "Preferences"))
+        c.addView(preferencesCard())
         c.addView(Sections.header(ctx, p, "GigFlow sync"))
         c.addView(syncCard())
         c.addView(Sections.header(ctx, p, "About"))
         c.addView(aboutCard())
+        c.addView(Sections.header(ctx, p, "Credits"))
+        c.addView(creditsCard())
         screen.animateIn()
     }
 
@@ -155,8 +159,9 @@ class AssistScreen(
         card.addView(Sections.row(ctx, p,
             title = "Watched apps",
             value = "6 driver apps",
-            iconGlyph = "car", iconTint = p.tint,
-        ))
+            iconGlyph = "grid", iconTint = p.tint,
+            chevron = true,
+        ) { showWatchedApps() })
         card.addView(Sections.separator(ctx, p))
         card.addView(Sections.row(ctx, p,
             title = "Version",
@@ -165,6 +170,133 @@ class AssistScreen(
         ))
         c_footer(card, "Everything stays on-device except the fields you sync. GigFlow isn't affiliated with any gig platform.")
         return card
+    }
+
+    /** Units, overlay timing, haptics, log management. */
+    private fun preferencesCard(): View {
+        val card = Sections.card(ctx, p)
+
+        // Distance unit — segmented
+        card.addView(prefSegmentedRow("Units", listOf("Miles", "Kilometres"),
+            if (settings.distanceUnit == "KM") 1 else 0) {
+            settings.distanceUnit = if (it == 1) "KM" else "MI"
+        })
+        card.addView(Sections.separator(ctx, p))
+
+        // Overlay timeout — segmented
+        val secs = listOf(0, 10, 30, 60)
+        card.addView(prefSegmentedRow("Overlay shows for",
+            listOf("Until gone", "10 s", "30 s", "60 s"),
+            secs.indexOf(settings.overlaySeconds).coerceAtLeast(0)) {
+            settings.overlaySeconds = secs[it]
+        })
+        card.addView(Sections.separator(ctx, p))
+
+        // Haptics
+        val (rHap, _) = Sections.switchRow(ctx, p, "Haptic feedback",
+            "Vibrate on taps and toggles", settings.haptics) { settings.haptics = it }
+        card.addView(rHap)
+        card.addView(Sections.separator(ctx, p))
+
+        // Clear offer log — destructive
+        card.addView(Sections.row(ctx, p,
+            title = "Clear offer log",
+            subtitle = "Removes the local history of scored offers",
+            iconGlyph = "trash", iconTint = p.red,
+        ) {
+            OfferLog.clear(ctx)
+            Toast.makeText(ctx, "Offer log cleared", Toast.LENGTH_SHORT).show()
+        })
+        return card
+    }
+
+    private fun prefSegmentedRow(
+        label: String, options: List<String>, initial: Int, onPick: (Int) -> Unit,
+    ): View {
+        return LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 16f), dp(ctx, 10f), dp(ctx, 16f), dp(ctx, 12f))
+            addView(TextView(ctx).apply {
+                text = label; textSize = Ios.T_SUBHEAD; setTextColor(p.label2)
+                setPadding(0, 0, 0, dp(ctx, 8f))
+            })
+            addView(IosSegmented(ctx, p, options, initial = initial).apply {
+                onSelected = onPick
+            })
+        }
+    }
+
+    private fun showWatchedApps() {
+        val sheet = IosSheet(ctx, p)
+        val names = listOf(
+            "Uber Driver" to "com.uber.driver",
+            "Lyft Driver" to "com.lyft.driver",
+            "Dasher" to "com.doordash.driverapp",
+            "Instacart Shopper" to "com.instacart.shopper",
+            "Amazon Flex" to "com.amazon.rabbit",
+            "Spark Driver" to "com.walmart.driver.spark",
+        )
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 4f), dp(ctx, 20f), dp(ctx, 12f))
+        }
+        col.addView(TextView(ctx).apply {
+            text = "Watched apps"
+            textSize = Ios.T_HEADLINE
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(p.label)
+            setPadding(0, 0, 0, dp(ctx, 10f))
+        })
+        names.forEach { (name, pkg) ->
+            col.addView(LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(ctx, 6f), 0, dp(ctx, 6f))
+                addView(TextView(ctx).apply {
+                    text = name; textSize = Ios.T_BODY; setTextColor(p.label)
+                })
+                addView(TextView(ctx).apply {
+                    text = pkg; textSize = Ios.T_CAPTION; setTextColor(p.label3)
+                })
+            })
+        }
+        col.addView(TextView(ctx).apply {
+            text = "The assistant only reads these apps. It can't see anything else on your phone."
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
+            setPadding(0, dp(ctx, 8f), 0, 0)
+        })
+        sheet.add(col).show()
+    }
+
+    private fun creditsCard(): View {
+        val card = Sections.card(ctx, p)
+        card.addView(Sections.row(ctx, p,
+            title = "Made by w0wzahh",
+            subtitle = "Open source · feedback welcome",
+            iconGlyph = "person", iconTint = p.tint,
+        ))
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
+            title = "GitHub",
+            subtitle = "github.com/w0wzahh",
+            iconGlyph = "link", iconTint = p.gray,
+            chevron = true,
+        ) { openUrl("https://github.com/w0wzahh") })
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
+            title = "Support on Ko-fi",
+            subtitle = "Buy the dev a coffee — ko-fi.com/w0wzahh",
+            iconGlyph = "heart", iconTint = p.red,
+            chevron = true,
+        ) { openUrl("https://ko-fi.com/w0wzahh") })
+        return card
+    }
+
+    private fun openUrl(url: String) {
+        try {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+        } catch (_: Exception) {
+            Toast.makeText(ctx, url, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun c_footer(card: LinearLayout, text: String) {

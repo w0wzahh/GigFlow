@@ -26,8 +26,11 @@ object Ios {
     const val ANIM_MS = 320L
     const val ANIM_FAST = 180L
 
+    /** Global toggle mirrored from SettingsRepository.haptics. */
+    @Volatile var hapticsEnabled = true
+
     fun View.haptic() {
-        performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+        if (hapticsEnabled) performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
     }
 
     fun View.pressable(scale: Float = 0.965f) {

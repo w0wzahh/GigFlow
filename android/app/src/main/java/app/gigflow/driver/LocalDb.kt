@@ -65,6 +65,43 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 1) {
         )
     }
 
+    /** Updates the payload of a record — keeps the same clientId and marks it
+     *  unsynced so the change is pushed. */
+    fun update(clientId: String, type: String, payload: JSONObject) {
+        payload.put("type", type)
+        payload.put("clientId", clientId)
+        writableDatabase.execSQL(
+            "UPDATE records SET type = ?, payload = ?, synced = 0 WHERE client_id = ?",
+            arrayOf(type, payload.toString(), clientId),
+        )
+    }
+
+    fun delete(clientId: String) {
+        writableDatabase.execSQL("DELETE FROM records WHERE client_id = ?", arrayOf(clientId))
+    }
+
+    fun get(clientId: String): Row? =
+        query("SELECT * FROM records WHERE client_id = ?", arrayOf(clientId)).firstOrNull()
+
+    private fun query(sql: String, args: Array<String>? = null): List<Row> {
+        val out = mutableListOf<Row>()
+        readableDatabase.rawQuery(sql, args).use { c ->
+            while (c.moveToNext()) {
+                out.add(Row(
+                    id = c.getLong(0),
+                    clientId = c.getString(1),
+                    type = c.getString(2),
+                    payload = JSONObject(c.getString(3)),
+                    createdAt = c.getLong(4),
+                    synced = c.getInt(5) == 1,
+                ))
+            }
+        }
+        return out
+    }
+
+    private fun query(sql: String): List<Row> = query(sql, null)
+
     fun unsyncedCount(): Int =
         readableDatabase.rawQuery("SELECT COUNT(*) FROM records WHERE synced = 0", null).use {
             it.moveToFirst(); it.getInt(0)
@@ -89,21 +126,4 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 1) {
     }
 
     data class Totals(val earnedCents: Int, val spentCents: Int, val km: Double)
-
-    private fun query(sql: String): List<Row> {
-        val out = mutableListOf<Row>()
-        readableDatabase.rawQuery(sql, null).use { c ->
-            while (c.moveToNext()) {
-                out.add(Row(
-                    id = c.getLong(0),
-                    clientId = c.getString(1),
-                    type = c.getString(2),
-                    payload = JSONObject(c.getString(3)),
-                    createdAt = c.getLong(4),
-                    synced = c.getInt(5) == 1,
-                ))
-            }
-        }
-        return out
-    }
 }

@@ -1,6 +1,8 @@
 package app.gigflow.driver
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 
 /**
@@ -21,6 +23,10 @@ class GigFlowAccessibilityService : AccessibilityService() {
     private var lastSeenAt = 0L
     private var lastScanAt = 0L
     private var activeOffer: ScoredOffer? = null
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var hideRunnable: Runnable? = null
+    private var hideToken = ""
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -82,6 +88,17 @@ class GigFlowAccessibilityService : AccessibilityService() {
             overlay.hide()
         }
 
+        // Optional overlay timeout — 0 = stay until the card disappears.
+        val secs = prefs.overlaySeconds
+        if (secs > 0) {
+            val token = offer.fingerprint
+            hideToken = token
+            hideRunnable?.let { handler.removeCallbacks(it) }
+            val r = Runnable { if (hideToken == token) overlay.hide() }
+            hideRunnable = r
+            handler.postDelayed(r, secs * 1000L)
+        }
+
         // Automation: only when the user explicitly enabled it, and only when
         // we actually found the button's bounds.
         if (prefs.autoAccept && scored.verdict == Verdict.GOOD) {
@@ -111,6 +128,8 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     private fun offerGone() {
+        hideRunnable?.let { handler.removeCallbacks(it) }
+        hideToken = ""
         if (activeOffer != null) {
             activeOffer = null
             lastFingerprint = ""

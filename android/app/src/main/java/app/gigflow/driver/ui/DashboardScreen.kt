@@ -30,9 +30,13 @@ class DashboardScreen(
 
         c.addView(greeting())
         c.addView(heroCard())
+        c.addView(Sections.header(ctx, p, "This week"))
         c.addView(weekChartCard())
+        c.addView(Sections.header(ctx, p, "Assistant"))
         c.addView(assistantCard())
+        c.addView(Sections.header(ctx, p, "Recent activity"))
         c.addView(todayRecordsCard())
+        c.addView(gap(24f))
 
         if (GigFlowApi.configured(settings.syncBaseUrl, settings.syncToken)) {
             GigFlowApi.fetchSummary(settings.syncBaseUrl, settings.syncToken) { s ->
@@ -56,7 +60,11 @@ class DashboardScreen(
         }
         textSize = Ios.T_SUBHEAD
         setTextColor(p.label2)
-        setPadding(dp(ctx, 17f), 0, dp(ctx, 16f), dp(ctx, 10f))
+        setPadding(dp(ctx, 17f), 0, dp(ctx, 16f), dp(ctx, 2f))
+    }
+
+    private fun gap(h: Float) = View(ctx).apply {
+        layoutParams = LinearLayout.LayoutParams(1, dp(ctx, h))
     }
 
     private fun todayFromWeb() = summary?.optJSONObject("today")
@@ -89,10 +97,16 @@ class DashboardScreen(
         })
         pad.addView(TextView(ctx).apply {
             text = Ios.money(net)
-            textSize = 40f
+            textSize = 44f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(if (net >= 0) p.label else p.red)
-            setPadding(0, dp(ctx, 2f), 0, dp(ctx, 10f))
+            setPadding(0, dp(ctx, 2f), 0, dp(ctx, 14f))
+        })
+        pad.addView(View(ctx).apply {
+            background = Ios.rounded(1f, p.separator, ctx)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 0.8f),
+            ).apply { bottomMargin = dp(ctx, 12f) }
         })
         pad.addView(LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -183,18 +197,11 @@ class DashboardScreen(
     private fun todayRecordsCard(): View {
         val card = Sections.card(ctx, p)
         val recent = db.all(5)
-        card.addView(TextView(ctx).apply {
-            text = "RECENT"
-            textSize = Ios.T_CAPTION
-            setTextColor(p.label2)
-            letterSpacing = 0.08f
-            setPadding(dp(ctx, 18f), dp(ctx, 12f), 0, dp(ctx, 2f))
-        })
         if (recent.isEmpty()) {
             card.addView(TextView(ctx).apply {
                 text = "Nothing logged yet — use the Track tab."
                 textSize = Ios.T_SUBHEAD; setTextColor(p.label2)
-                setPadding(dp(ctx, 18f), dp(ctx, 2f), dp(ctx, 18f), dp(ctx, 14f))
+                setPadding(dp(ctx, 18f), dp(ctx, 14f), dp(ctx, 18f), dp(ctx, 14f))
             })
         } else {
             recent.forEachIndexed { i, r ->
@@ -209,7 +216,7 @@ class DashboardScreen(
         val (glyph, tint, label, amount) = when (r.type) {
             "earning" -> Quad("bolt", p.green, "Earning", "+${Ios.money(r.payload.optInt("amountCents"))}")
             "expense" -> Quad("tag", p.red, "Expense", "-${Ios.money(r.payload.optInt("amountCents"))}")
-            else -> Quad("car", p.tint, "Mileage", "%.1f km".format(r.payload.optDouble("distanceKm")))
+            else -> Quad("car", p.tint, "Mileage", distanceText(r.payload.optDouble("distanceKm")))
         }
         return Sections.row(ctx, p,
             title = label,
@@ -219,6 +226,9 @@ class DashboardScreen(
             iconGlyph = glyph, iconTint = tint,
         )
     }
+
+    private fun distanceText(km: Double) = if (settings.distanceUnit == "KM")
+        "%.1f km".format(km) else "%.1f mi".format(km * 0.621371)
 
     private data class Quad(val a: String, val b: Int, val c: String, val d: String)
 

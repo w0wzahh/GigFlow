@@ -130,6 +130,57 @@ class IosIcon(
                 canvas.drawLine(cx - s * 0.3f, cy, cx + s * 0.3f, cy, paint)
                 canvas.drawLine(cx - s * 0.3f, cy + s * 0.25f, cx + s * 0.1f, cy + s * 0.25f, paint)
             }
+            "grid" -> {
+                val cw = s * 0.62f
+                for (gx in 0..1) for (gy in 0..1) {
+                    val l = cx - s * 0.72f + gx * (cw + s * 0.22f)
+                    val t = cy - s * 0.72f + gy * (cw + s * 0.22f)
+                    p.addRoundRect(RectF(l, t, l + cw, t + cw), cw * 0.24f, cw * 0.24f, Path.Direction.CW)
+                }
+                canvas.drawPath(p, paint)
+            }
+            "heart" -> {
+                p.moveTo(cx, cy + s * 0.6f)
+                p.cubicTo(cx - s * 0.9f, cy - s * 0.05f, cx - s * 0.55f, cy - s * 0.85f, cx, cy - s * 0.32f)
+                p.cubicTo(cx + s * 0.55f, cy - s * 0.85f, cx + s * 0.9f, cy - s * 0.05f, cx, cy + s * 0.6f)
+                paint.style = Paint.Style.FILL
+                canvas.drawPath(p, paint)
+                paint.style = Paint.Style.STROKE
+            }
+            "link" -> {
+                val r = s * 0.3f
+                p.addArc(RectF(cx - s * 0.75f, cy - s * 0.35f, cx - s * 0.05f, cy + s * 0.35f), 90f, 270f)
+                p.addArc(RectF(cx + s * 0.05f, cy - s * 0.35f, cx + s * 0.75f, cy + s * 0.35f), -90f, 270f)
+                canvas.drawPath(p, paint)
+                canvas.drawLine(cx - s * 0.3f, cy, cx + s * 0.3f, cy, paint)
+            }
+            "trash" -> {
+                canvas.drawRoundRect(
+                    RectF(cx - s * 0.5f, cy - s * 0.35f, cx + s * 0.5f, cy + s * 0.65f),
+                    s * 0.12f, s * 0.12f, paint)
+                canvas.drawLine(cx - s * 0.62f, cy - s * 0.45f, cx + s * 0.62f, cy - s * 0.45f, paint)
+                canvas.drawLine(cx - s * 0.15f, cy - s * 0.45f, cx - s * 0.15f, cy - s * 0.6f, paint)
+                canvas.drawLine(cx - s * 0.15f, cy - s * 0.6f, cx + s * 0.15f, cy - s * 0.6f, paint)
+                canvas.drawLine(cx + s * 0.15f, cy - s * 0.6f, cx + s * 0.15f, cy - s * 0.45f, paint)
+                canvas.drawLine(cx - s * 0.15f, cy - s * 0.05f, cx - s * 0.15f, cy + s * 0.4f, paint)
+                canvas.drawLine(cx + s * 0.15f, cy - s * 0.05f, cx + s * 0.15f, cy + s * 0.4f, paint)
+            }
+            "globe" -> {
+                canvas.drawCircle(cx, cy, s * 0.7f, paint)
+                canvas.drawOval(RectF(cx - s * 0.32f, cy - s * 0.7f, cx + s * 0.32f, cy + s * 0.7f), paint)
+                canvas.drawLine(cx - s * 0.66f, cy - s * 0.22f, cx + s * 0.66f, cy - s * 0.22f, paint)
+                canvas.drawLine(cx - s * 0.66f, cy + s * 0.22f, cx + s * 0.66f, cy + s * 0.22f, paint)
+            }
+            "plus.circle" -> {
+                canvas.drawCircle(cx, cy, s * 0.75f, paint)
+                canvas.drawLine(cx - s * 0.36f, cy, cx + s * 0.36f, cy, paint)
+                canvas.drawLine(cx, cy - s * 0.36f, cx, cy + s * 0.36f, paint)
+            }
+            "person" -> {
+                canvas.drawCircle(cx, cy - s * 0.35f, s * 0.28f, paint)
+                p.addArc(RectF(cx - s * 0.55f, cy + s * 0.02f, cx + s * 0.55f, cy + s * 1.1f), 180f, 180f)
+                canvas.drawPath(p, paint)
+            }
             "mappin" -> {
                 p.moveTo(cx, cy + s * 0.75f)
                 p.cubicTo(cx - s * 0.8f, cy - s * 0.1f, cx - s * 0.45f, cy - s * 0.75f, cx, cy - s * 0.75f)

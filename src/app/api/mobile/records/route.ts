@@ -123,3 +123,84 @@ export const PUT = withErrors(async (req) => {
   }
   return ok({ created, total: items.length });
 });
+
+const refSchema = z.object({
+  type: z.enum(["earning", "expense", "mileage"]),
+  clientId: z.string().min(8).max(80),
+});
+
+const patchSchema = refSchema.extend({
+  amountCents: z.number().int().min(-1_000_000).max(1_000_000).optional(),
+  tipCents: z.number().int().nonnegative().max(1_000_000).optional(),
+  hours: z.number().nonnegative().max(24).optional(),
+  distanceKm: z.number().positive().max(2000).optional(),
+  notes: z.string().max(500).nullable().optional(),
+  description: z.string().max(500).nullable().optional(),
+  startLocation: z.string().max(200).nullable().optional(),
+  endLocation: z.string().max(200).nullable().optional(),
+});
+
+/**
+ * PATCH — update a previously-pushed record in place, keyed by
+ * `companion:<clientId>`.
+ */
+export const PATCH = withErrors(async (req) => {
+  const user = await getMobileUser(req);
+  const body = patchSchema.parse(await req.json());
+  const key = `companion:${body.clientId}`;
+
+  if (body.type === "earning") {
+    const existing = await db.earning.findFirst({ where: { userId: user.id, importKey: key } });
+    if (!existing) throw errors.notFound("Record");
+    await db.earning.update({
+      where: { id: existing.id },
+      data: {
+        ...(body.amountCents !== undefined ? { amountCents: body.amountCents } : {}),
+        ...(body.tipCents !== undefined ? { tipCents: body.tipCents } : {}),
+        ...(body.hours !== undefined ? { hours: body.hours } : {}),
+        ...(body.distanceKm !== undefined ? { distanceKm: body.distanceKm } : {}),
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      },
+    });
+    return ok({ updated: true });
+  }
+  if (body.type === "expense") {
+    const existing = await db.expense.findFirst({ where: { userId: user.id, importKey: key } });
+    if (!existing) throw errors.notFound("Record");
+    await db.expense.update({
+      where: { id: existing.id },
+      data: {
+        ...(body.amountCents !== undefined ? { amountCents: body.amountCents } : {}),
+        ...(body.description !== undefined ? { description: body.description } : {}),
+      },
+    });
+    return ok({ updated: true });
+  }
+  const existing = await db.mileageRecord.findFirst({ where: { userId: user.id, importKey: key } });
+  if (!existing) throw errors.notFound("Record");
+  await db.mileageRecord.update({
+    where: { id: existing.id },
+    data: {
+      ...(body.distanceKm !== undefined ? { distanceKm: body.distanceKm } : {}),
+      ...(body.startLocation !== undefined ? { startLocation: body.startLocation } : {}),
+      ...(body.endLocation !== undefined ? { endLocation: body.endLocation } : {}),
+    },
+  });
+  return ok({ updated: true });
+});
+
+/** DELETE — remove a pushed record by `companion:<clientId>`. */
+export const DELETE = withErrors(async (req) => {
+  const user = await getMobileUser(req);
+  const body = refSchema.parse(await req.json());
+  const key = `companion:${body.clientId}`;
+
+  const deleted =
+    body.type === "earning"
+      ? await db.earning.deleteMany({ where: { userId: user.id, importKey: key } })
+      : body.type === "expense"
+        ? await db.expense.deleteMany({ where: { userId: user.id, importKey: key } })
+        : await db.mileageRecord.deleteMany({ where: { userId: user.id, importKey: key } });
+
+  return ok({ deleted: deleted.count });
+});

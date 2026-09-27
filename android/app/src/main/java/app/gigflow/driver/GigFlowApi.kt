@@ -40,6 +40,22 @@ object GigFlowApi {
         post(baseUrl, token, "/api/mobile/records", payload) { ok -> onDone(ok) }
     }
 
+    /** Update a previously-pushed record, keyed by clientId. */
+    fun updateRecord(baseUrl: String, token: String, type: String, clientId: String, fields: JSONObject, onDone: (Boolean) -> Unit = {}) {
+        if (!configured(baseUrl, token)) { onDone(false); return }
+        val body = JSONObject(fields.toString())
+            .put("type", type)
+            .put("clientId", clientId)
+        request("PATCH", baseUrl, token, "/api/mobile/records", body) { ok -> onDone(ok) }
+    }
+
+    /** Delete a pushed record by clientId. */
+    fun deleteRecord(baseUrl: String, token: String, type: String, clientId: String, onDone: (Boolean) -> Unit = {}) {
+        if (!configured(baseUrl, token)) { onDone(false); return }
+        request("DELETE", baseUrl, token, "/api/mobile/records", JSONObject()
+            .put("type", type).put("clientId", clientId)) { ok -> onDone(ok) }
+    }
+
     /** Flush all unsynced rows as one batch. */
     fun pushBatch(baseUrl: String, token: String, rows: List<LocalDb.Row>, onDone: (Boolean) -> Unit = {}) {
         if (!configured(baseUrl, token) || rows.isEmpty()) { onDone(false); return }
