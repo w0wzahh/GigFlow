@@ -25,8 +25,9 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
     private fun isKm() = settings.distanceUnit == "KM"
     private fun distText(km: Double) =
         "%.1f %s".format(if (isKm()) km else km * 0.621371, if (isKm()) "km" else "mi")
-    private fun perDistText(centsPerMile: Int) =
-        "$%.2f/%s".format(
+    private fun perDistText(centsPerMile: Int, symbol: String = "$") =
+        "%s%.2f/%s".format(
+            symbol,
             (if (isKm()) centsPerMile / 1.609344 else centsPerMile.toDouble()) / 100f,
             if (isKm()) "km" else "mi",
         )
@@ -85,7 +86,7 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
             if (e.reservation) append("Reserved")
             e.distanceKm?.let { if (isNotEmpty()) append(" · "); append(distText(it)) }
             e.durationMin?.let { if (isNotEmpty()) append(" · "); append("${it.toInt()} min") }
-            e.perMileCents?.let { if (isNotEmpty()) append(" · "); append(perDistText(it)) }
+            e.perMileCents?.let { if (isNotEmpty()) append(" · "); append(perDistText(it, e.currency)) }
             if (e.action != "shown") {
                 if (isNotEmpty()) append(" · ")
                 append(e.action.replace('_', ' '))
@@ -109,7 +110,7 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
             addView(LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
                 addView(TextView(ctx).apply {
-                    text = Ios.money(e.payoutCents)
+                    text = Ios.money(e.payoutCents, e.currency)
                     textSize = Ios.T_HEADLINE
                     setTypeface(typeface, Typeface.BOLD)
                     setTextColor(p.label)
@@ -154,7 +155,7 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
                     .apply { rightMargin = dp(ctx, 10f) }
             })
             addView(TextView(ctx).apply {
-                text = "${Ios.money(e.payoutCents)} · $verdictLabel"
+                text = "${Ios.money(e.payoutCents, e.currency)} · $verdictLabel"
                 textSize = Ios.T_HEADLINE; setTypeface(typeface, Typeface.BOLD); setTextColor(p.label)
             })
         })
@@ -168,8 +169,8 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
             if (e.reservation) "Type" to "Reservation" else null,
             e.distanceKm?.let { "Distance" to distText(it) },
             e.durationMin?.let { "Duration" to "${it.toInt()} min" },
-            e.perMileCents?.let { "Per ${if (isKm()) "kilometre" else "mile"}" to perDistText(it).substringBefore('/') },
-            e.perHourCents?.let { "Per hour" to "$%.2f".format(it / 100f) },
+            e.perMileCents?.let { "Per ${if (isKm()) "kilometre" else "mile"}" to perDistText(it, e.currency).substringBefore('/') },
+            e.perHourCents?.let { "Per hour" to Ios.money(it, e.currency) },
             "Action" to (if (e.action == "shown") "Seen only" else e.action.replace('_', ' ')),
         )
         metrics.forEachIndexed { i, (k, v) ->

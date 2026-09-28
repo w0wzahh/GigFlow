@@ -32,11 +32,11 @@ object RuleEngine {
 
         if (perMile != null) {
             checks++
-            if (perMile >= prefs.minPerMileCents) score++ else reasons.add("below $/mi target")
+            if (perMile >= prefs.minPerMileCents) score++ else reasons.add("below per-distance target")
         }
         if (perHour != null) {
             checks++
-            if (perHour >= prefs.minPerHourCents) score++ else reasons.add("below $/hr target")
+            if (perHour >= prefs.minPerHourCents) score++ else reasons.add("below per-hour target")
         }
         checks++
         if (offer.payoutCents >= prefs.minPayoutCents) score++ else reasons.add("below payout floor")

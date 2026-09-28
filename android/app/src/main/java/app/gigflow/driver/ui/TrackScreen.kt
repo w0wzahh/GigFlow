@@ -28,6 +28,8 @@ class TrackScreen(
 ) {
     val screen = Screen(ctx, p, "Track")
     private val ctx: Context = ctx
+
+    private fun money(cents: Int?) = Ios.money(cents, settings.currencySymbol)
     private var kind = 0 // 0 earning, 1 expense, 2 mileage
     private var editing: LocalDb.Row? = null
 
@@ -212,9 +214,9 @@ class TrackScreen(
         }
         pad.addView(TextView(ctx).apply {
             text = when (r.type) {
-                "earning" -> "Earning · " + Ios.money(r.payload.optInt("amountCents"))
+                "earning" -> "Earning · " + money(r.payload.optInt("amountCents"))
                 "expense" -> (r.payload.optString("description").ifBlank { "Expense" }) +
-                    " · " + Ios.money(r.payload.optInt("amountCents"))
+                    " · " + money(r.payload.optInt("amountCents"))
                 else -> "Mileage · " + distText(r.payload.optDouble("distanceKm"))
             }
             textSize = Ios.T_HEADLINE
@@ -293,9 +295,9 @@ class TrackScreen(
 
     private fun recentRow(r: LocalDb.Row): View {
         val (label, amount, tint) = when (r.type) {
-            "earning" -> Triple("Earning", "+${Ios.money(r.payload.optInt("amountCents"))}", p.green)
+            "earning" -> Triple("Earning", "+${money(r.payload.optInt("amountCents"))}", p.green)
             "expense" -> Triple(r.payload.optString("description").ifBlank { "Expense" },
-                "-${Ios.money(r.payload.optInt("amountCents"))}", p.red)
+                "-${money(r.payload.optInt("amountCents"))}", p.red)
             else -> Triple("Mileage", distText(r.payload.optDouble("distanceKm")), p.tint)
         }
         return Sections.row(ctx, p,

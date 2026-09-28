@@ -8,7 +8,7 @@ third-party dependencies (plain Views, no Compose/Material).
 
 Five tabs behind a floating frosted tab bar:
 
-- **Home** — today's net/gross/hours/$-per-hour plus a full analytics
+- **Home** — today's net/gross/hours/per-hour rate plus a full analytics
   section: week/month toggle, per-hour and per-distance rates, platform
   breakdown, daily gross chart, goals, and insights. Pulls live aggregates
   from the web workspace when sync is configured; otherwise computes from
@@ -32,10 +32,23 @@ Five tabs behind a floating frosted tab bar:
   Lyft Driver, Dasher, Instacart Shopper, Amazon Flex, Spark) via
   `AccessibilityService` — scoped by package name, blind to everything else.
 - Reads the offer card off the screen (payout, distance, duration,
-  accept/decline buttons) with text-pattern parsing — layout-independent.
+  accept/decline buttons, the offer's own countdown when shown) with
+  text-pattern parsing — layout-independent.
+- **Multi-currency**: `$ € £ Ft HUF kr zł lei Kč ₺ ₴` and code-prefixed
+  `USD/EUR/GBP` amounts, in either prefix or suffix position, with
+  locale-aware amounts (`1.850 Ft`, `12,50 EUR`, `2 340 Ft` all parse).
+  A `Currency` field in Offer rules relabels every threshold (`Ft / km`).
 - Scores against your thresholds and floats a verdict card over the app:
-  `GOOD OFFER` / `BORDERLINE` / `SKIP IT` with $/mi, $/hr, and tap shortcuts.
+  `GOOD OFFER` / `BORDERLINE` / `SKIP IT` with per-distance and per-hour
+  rates, tap shortcuts, and a ticking "Expires in Ns" line when the card
+  shows one.
+- Per-app rule overrides (Uber can differ from Wolt) and reservation
+  detection — scheduled work is badged and auto-accept is separately gated.
 - Optionally taps Accept/Decline via `dispatchGesture` — opt-in switches.
+- **Diagnostics** (Assistant tab): per-app "last seen" status plus the
+  exact texts the service read, so a parse miss is debuggable in seconds.
+- **Send a test offer** (Assistant → Automation): dry-runs score → overlay
+  → voice without logging anything, so you can verify setup while parked.
 - Pushes each scored offer to `POST /api/mobile/offers` so the web Offers
   feed sees what the phone saw.
 

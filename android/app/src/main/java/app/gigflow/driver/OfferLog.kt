@@ -23,6 +23,7 @@ object OfferLog {
         val lat: Double? = null,
         val lng: Double? = null,
         val reservation: Boolean = false,
+        val currency: String = "$",
     )
 
     fun add(context: Context, e: Entry) {
@@ -41,6 +42,7 @@ object OfferLog {
         e.lat?.let { o.put("lat", it) }
         e.lng?.let { o.put("lng", it) }
         if (e.reservation) o.put("reservation", true)
+        o.put("currency", e.currency)
         val next = JSONArray()
         next.put(o)
         for (i in 0 until minOf(arr.length(), MAX - 1)) next.put(arr.get(i))
@@ -65,6 +67,7 @@ object OfferLog {
                 lat = if (o.has("lat")) o.getDouble("lat") else null,
                 lng = if (o.has("lng")) o.getDouble("lng") else null,
                 reservation = o.optBoolean("reservation"),
+                currency = o.optString("currency", "$"),
             )
         }
     }

@@ -36,7 +36,9 @@ class DashboardScreen(
         val c = screen.column
 
         c.addView(greeting())
+        if (!OverlayController.isServiceEnabled(ctx)) c.addView(serviceBanner())
         c.addView(heroCard())
+        c.addView(shareRow())
         c.addView(Sections.header(ctx, p, "Analytics"))
         c.addView(LinearLayout(ctx).apply {
             setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), dp(ctx, 10f))
@@ -75,6 +77,60 @@ class DashboardScreen(
         if (animate) screen.animateIn()
     }
 
+    /** Loud top-of-page warning — without the service the app is just a
+     * manual tracker, which is the #1 "it doesn't work" complaint. */
+    private fun serviceBanner(): View {
+        val card = Sections.card(ctx, p)
+        card.addView(Sections.row(ctx, p,
+            title = "Offer assistant is off",
+            subtitle = "Offers can't be scored or auto-accepted until you enable the accessibility service",
+            iconGlyph = "bolt", iconTint = p.orange,
+        ))
+        card.addView(LinearLayout(ctx).apply {
+            setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), dp(ctx, 14f))
+            val btn = iosButton(ctx, p, "Enable now — takes 10 seconds")
+            addView(btn, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            btn.setOnClickListener {
+                ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+        })
+        return card
+    }
+
+    /** Mystro-style share: today's numbers as plain text via the share sheet. */
+    private fun shareRow(): View {
+        val card = Sections.card(ctx, p)
+        card.addView(Sections.row(ctx, p,
+            title = "Share today's summary",
+            subtitle = "Sends your stats as text — nothing else leaves the phone",
+            iconGlyph = "link", iconTint = p.tint, chevron = true,
+        ) {
+            val dayStart = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            val local = db.totals(dayStart)
+            val todayOffers = OfferLog.all(ctx).filter { it.at >= dayStart }
+            val good = todayOffers.count { it.verdict == "GOOD" }
+            val text = buildString {
+                append("Today's GigFlow summary\n")
+                append("Net: ${money(local.earnedCents - local.spentCents, settings.currencySymbol)}\n")
+                append("Earned: ${money(local.earnedCents, settings.currencySymbol)}")
+                append(" · Spent: ${money(local.spentCents, settings.currencySymbol)}\n")
+                if (local.km > 0) append("Distance: ${dist(local.km)}\n")
+                append("Offers scored: ${todayOffers.size}")
+                if (good > 0) append(" ($good good)")
+            }
+            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, text)
+            }
+            ctx.startActivity(android.content.Intent.createChooser(send, "Share today's summary"))
+        })
+        return card
+    }
+
     private fun greeting(): View = TextView(ctx).apply {
         val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         text = when {
@@ -93,12 +149,15 @@ class DashboardScreen(
         layoutParams = LinearLayout.LayoutParams(1, dp(ctx, h))
     }
 
+    private fun money(cents: Int?, symbol: String = settings.currencySymbol) =
+        Ios.money(cents, symbol)
+
     private fun todayFromWeb() = summary?.optJSONObject("today")
     private fun isKm() = settings.distanceUnit == "KM"
     private fun dist(km: Double) = if (isKm()) "%.1f km".format(km)
         else "%.1f mi".format(km * 0.621371)
     private fun perDist(centsPerKm: Int?) = centsPerKm?.let {
-        Ios.money(if (isKm()) it else (it * 1.609344).toInt())
+        money(if (isKm()) it else (it * 1.609344).toInt())
     } ?: "—"
 
     private fun heroCard(): View {
@@ -127,7 +186,7 @@ class DashboardScreen(
             letterSpacing = 0.08f
         })
         pad.addView(TextView(ctx).apply {
-            text = Ios.money(net)
+            text = money(net)
             textSize = 44f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(if (net >= 0) p.label else p.red)
@@ -141,10 +200,10 @@ class DashboardScreen(
         })
         pad.addView(LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(miniStat("Gross", Ios.money(gross)))
+            addView(miniStat("Gross", money(gross)))
             addView(miniStat("Hours", hours?.let { "%.1f".format(it) } ?: "—"))
-            addView(miniStat("\$/hr", web?.optInt("perHourCents", -1)?.takeIf { it >= 0 }
-                ?.let { Ios.money(it) } ?: "—"))
+            addView(miniStat("${settings.currencySymbol}/hr", web?.optInt("perHourCents", -1)?.takeIf { it >= 0 }
+                ?.let { money(it) } ?: "—"))
             addView(miniStat("Offers", offers?.toString() ?: OfferLog.all(ctx).size.toString()))
         })
         card.addView(pad)
@@ -213,7 +272,7 @@ class DashboardScreen(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             addView(TextView(ctx).apply {
-                text = Ios.money(a.net)
+                text = money(a.net)
                 textSize = 34f; setTypeface(typeface, Typeface.BOLD)
                 setTextColor(if (a.net >= 0) p.label else p.red)
             })
@@ -239,8 +298,8 @@ class DashboardScreen(
         })
         pad.addView(TextView(ctx).apply {
             text = buildString {
-                append("${Ios.money(a.gross)} earned · ${Ios.money(a.spent)} spent")
-                if (a.tips > 0) append(" · ${Ios.money(a.tips)} tips")
+                append("${money(a.gross)} earned · ${money(a.spent)} spent")
+                if (a.tips > 0) append(" · ${money(a.tips)} tips")
             }
             textSize = Ios.T_SUBHEAD; setTextColor(p.label2)
             setPadding(0, dp(ctx, 6f), 0, 0)
@@ -266,14 +325,14 @@ class DashboardScreen(
 
     private fun gridCard(): View {
         val a = agg()
-        val perHr = if (a.hours > 0) Ios.money((a.gross / a.hours).toInt()) else "—"
+        val perHr = if (a.hours > 0) money((a.gross / a.hours).toInt()) else "—"
         val perD = if (a.km > 0) perDist((a.gross / a.km).toInt()) else "—"
         val card = Sections.card(ctx, p)
         card.addView(LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(ctx, 12f), dp(ctx, 6f), dp(ctx, 12f), dp(ctx, 6f))
-            addView(stat("$ / hour", perHr))
-            addView(stat("$ / ${if (isKm()) "km" else "mi"}", perD))
+            addView(stat("${settings.currencySymbol} / hour", perHr))
+            addView(stat("${settings.currencySymbol} / ${if (isKm()) "km" else "mi"}", perD))
             addView(stat("Distance", dist(a.km)))
             addView(stat(if (a.jobs >= 0) "Jobs" else "Hours",
                 if (a.jobs >= 0) a.jobs.toString() else "%.1f".format(a.hours)))
@@ -301,7 +360,7 @@ class DashboardScreen(
                     })
                     addView(TextView(ctx).apply {
                         val jobs = pl.optInt("jobs", 0)
-                        text = Ios.money(pl.optInt("grossCents")) +
+                        text = money(pl.optInt("grossCents")) +
                             if (jobs > 0) " · $jobs job${if (jobs == 1) "" else "s"}" else ""
                         textSize = Ios.T_SUBHEAD; setTextColor(p.label2)
                     })
@@ -384,7 +443,7 @@ class DashboardScreen(
                         layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                     })
                     addView(TextView(ctx).apply {
-                        text = "${Ios.money(g.optInt("progressCents"))} / ${Ios.money(g.optInt("targetCents"))}"
+                        text = "${money(g.optInt("progressCents"))} / ${money(g.optInt("targetCents"))}"
                         textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
                     })
                 })
@@ -433,8 +492,8 @@ class DashboardScreen(
 
     private fun recordRow(r: LocalDb.Row): View {
         val (glyph, tint, label, amount) = when (r.type) {
-            "earning" -> Quad("bolt", p.green, "Earning", "+${Ios.money(r.payload.optInt("amountCents"))}")
-            "expense" -> Quad("tag", p.red, "Expense", "-${Ios.money(r.payload.optInt("amountCents"))}")
+            "earning" -> Quad("bolt", p.green, "Earning", "+${money(r.payload.optInt("amountCents"))}")
+            "expense" -> Quad("tag", p.red, "Expense", "-${money(r.payload.optInt("amountCents"))}")
             else -> Quad("speed", p.tint, "Mileage", dist(r.payload.optDouble("distanceKm")))
         }
         return Sections.row(ctx, p,

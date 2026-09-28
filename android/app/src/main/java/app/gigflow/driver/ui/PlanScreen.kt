@@ -33,6 +33,8 @@ class PlanScreen(
 ) {
     val screen = Screen(ctx, p, "Schedule")
     private val ctx: Context = ctx
+
+    private fun money(cents: Int?) = Ios.money(cents, settings.currencySymbol)
     private var pickedDay = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun
     private var dayBtns = mutableListOf<TextView>()
 
@@ -237,7 +239,7 @@ class PlanScreen(
                 subtitle = "${dayNames.getOrElse(pl.optInt("dayOfWeek")) { "?" }} · " +
                     "${fmt(pl.optInt("startMin"))} – ${fmt(pl.optInt("endMin"))}" +
                     (pl.optInt("targetCents").takeIf { it > 0 }
-                        ?.let { " · target ${Ios.money(it)}" } ?: "") +
+                        ?.let { " · target ${money(it)}" } ?: "") +
                     if (!s.synced) " · pending" else "",
                 iconGlyph = "calendar", iconTint = p.tint,
                 chevron = true,

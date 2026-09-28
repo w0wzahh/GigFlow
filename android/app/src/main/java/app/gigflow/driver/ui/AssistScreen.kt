@@ -253,6 +253,21 @@ class AssistScreen(
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         })
+        // Dry-run the whole pipeline: score → overlay → voice. No logging,
+        // no taps — safe to use while parked.
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
+            title = "Send a test offer",
+            subtitle = if (OverlayController.isServiceEnabled(ctx))
+                "Shows the verdict card + countdown without a real offer"
+            else "Enable the service first — then this shows the overlay",
+            iconGlyph = "bolt", iconTint = p.tint,
+            chevron = OverlayController.isServiceEnabled(ctx),
+        ) {
+            val svc = GigFlowAccessibilityService.instance
+            if (svc != null) svc.testOffer()
+            else Toast.makeText(ctx, "Enable the accessibility service first", Toast.LENGTH_SHORT).show()
+        })
         c_footer(card, "GigFlow only taps when the button is found clearly. It never touches other apps.")
         return card
     }
@@ -260,13 +275,17 @@ class AssistScreen(
     private fun rulesCard(): View {
         val card = Sections.card(ctx, p)
         val isKm = settings.distanceUnit == "KM"
+        val cur = settings.currencySymbol
+        val (rCur, curField) = Sections.formField(ctx, p, "Currency",
+            settings.currencySymbol, numeric = false, hint = "$ / Ft / €")
         val (rMile, mile) = Sections.formField(ctx, p,
-            "Min $ / ${if (isKm) "km" else "mile"}",
+            "Min $cur / ${if (isKm) "km" else "mile"}",
             "%.2f".format(if (isKm) settings.minPerMileCents / 1.609344 / 100.0 else settings.minPerMileCents / 100.0))
-        val (rHour, hour) = Sections.formField(ctx, p, "Min $ / hour", "%.2f".format(settings.minPerHourCents / 100.0))
-        val (rPayout, payout) = Sections.formField(ctx, p, "Min payout", "%.2f".format(settings.minPayoutCents / 100.0), hint = "$")
+        val (rHour, hour) = Sections.formField(ctx, p, "Min $cur / hour", "%.2f".format(settings.minPerHourCents / 100.0))
+        val (rPayout, payout) = Sections.formField(ctx, p, "Min payout", "%.2f".format(settings.minPayoutCents / 100.0), hint = cur)
         val (rDist, dist) = Sections.formField(ctx, p, "Max distance (${if (isKm) "km" else "mi"})",
             "%.1f".format(if (isKm) settings.maxDistanceKm else settings.maxDistanceKm * 0.621371))
+        card.addView(rCur); card.addView(Sections.separator(ctx, p))
         card.addView(rMile); card.addView(Sections.separator(ctx, p))
         card.addView(rHour); card.addView(Sections.separator(ctx, p))
         card.addView(rPayout); card.addView(Sections.separator(ctx, p))
@@ -277,6 +296,7 @@ class AssistScreen(
             addView(btn, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             btn.setOnClickListener {
+                settings.currencySymbol = curField.text.toString().ifBlank { "$" }
                 val perDist = (mile.text.toString().toDoubleOrNull() ?: 1.5) * 100
                 settings.minPerMileCents = (if (isKm) perDist * 1.609344 else perDist).toInt()
                 settings.minPerHourCents = ((hour.text.toString().toDoubleOrNull() ?: 20.0) * 100).toInt()
@@ -287,6 +307,7 @@ class AssistScreen(
                 Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show()
             }
         })
+        c_footer(card, "Thresholds are in your currency — Ft drivers set forint amounts (e.g. 600 Ft/km).")
         return card
     }
 
@@ -435,6 +456,7 @@ class AssistScreen(
     private fun editAppRules(name: String, pkg: String) {
         val sheet = IosSheet(ctx, p)
         val isKm = settings.distanceUnit == "KM"
+        val cur = settings.currencySymbol
         val eff = settings.rulesFor(pkg) // effective rules: override ?? global
 
         val col = LinearLayout(ctx).apply {
@@ -459,10 +481,10 @@ class AssistScreen(
         col.addView(Sections.separator(ctx, p))
 
         val (r1, mile) = Sections.formField(ctx, p,
-            "Min $ / ${if (isKm) "km" else "mile"}",
+            "Min $cur / ${if (isKm) "km" else "mile"}",
             "%.2f".format(if (isKm) eff.minPerMileCents / 1.609344 / 100.0 else eff.minPerMileCents / 100.0))
-        val (r2, hour) = Sections.formField(ctx, p, "Min $ / hour", "%.2f".format(eff.minPerHourCents / 100.0))
-        val (r3, payout) = Sections.formField(ctx, p, "Min payout", "%.2f".format(eff.minPayoutCents / 100.0), hint = "$")
+        val (r2, hour) = Sections.formField(ctx, p, "Min $cur / hour", "%.2f".format(eff.minPerHourCents / 100.0))
+        val (r3, payout) = Sections.formField(ctx, p, "Min payout", "%.2f".format(eff.minPayoutCents / 100.0), hint = cur)
         val (r4, dist) = Sections.formField(ctx, p, "Max distance (${if (isKm) "km" else "mi"})",
             "%.1f".format(if (isKm) eff.maxDistanceKm else eff.maxDistanceKm * 0.621371))
         col.addView(r1); col.addView(Sections.separator(ctx, p))
@@ -482,8 +504,8 @@ class AssistScreen(
         })
 
         save.setOnClickListener {
-            val dpm = mile.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min $/distance")
-            val dph = hour.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min $/hour")
+            val dpm = mile.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min per-distance")
+            val dph = hour.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min per-hour")
             val pay = payout.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Min payout")
             val d = dist.text.toString().toDoubleOrNull() ?: return@setOnClickListener bad("Max distance")
             settings.setPlatformOverride(pkg, JSONObject()

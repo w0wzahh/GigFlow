@@ -22,8 +22,28 @@ class OverlayController(private val service: AccessibilityService) {
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var view: LinearLayout? = null
     private var countdown: TextView? = null
+    private var expiry: TextView? = null
+    private val tickerHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var expiryTicker: Runnable? = null
 
-    private fun money(cents: Int?) = cents?.let { "$%.2f".format(it / 100.0) } ?: "—"
+    /** Tick down the offer's own expiry timer shown on the card. */
+    private fun tickExpiry(startSec: Int) {
+        expiryTicker?.let { tickerHandler.removeCallbacks(it) }
+        var left = startSec
+        val r = object : Runnable {
+            override fun run() {
+                left--
+                if (left <= 0) { hide(); return }
+                expiry?.text = "Expires in ${left}s"
+                tickerHandler.postDelayed(this, 1000)
+            }
+        }
+        expiryTicker = r
+        tickerHandler.postDelayed(r, 1000)
+    }
+
+    private fun money(cents: Int?, symbol: String = "$") =
+        cents?.let { "$symbol%.2f".format(it / 100.0) } ?: "—"
 
     /** Update the auto-accept countdown line, if shown. */
     fun setCountdown(secondsLeft: Int) {
@@ -54,7 +74,7 @@ class OverlayController(private val service: AccessibilityService) {
 
         val title = TextView(service).apply {
             text = (if (o.isReservation) "RESERVED · " else "") +
-                "$label  ·  ${money(o.payoutCents)}"
+                "$label  ·  ${money(o.payoutCents, o.currencySymbol)}"
             setTextColor(fgColor)
             textSize = 15f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -65,9 +85,10 @@ class OverlayController(private val service: AccessibilityService) {
             }
         }
         val isKm = SettingsRepository(service).distanceUnit == "KM"
+        val cur = o.currencySymbol
         val perDist = scored.perMileCents?.let { if (isKm) (it / 1.609344).toInt() else it }
         val stats = TextView(service).apply {
-            text = "${money(perDist)}/${if (isKm) "km" else "mi"} · ${money(scored.perHourCents)}/hr" +
+            text = "${money(perDist, cur)}/${if (isKm) "km" else "mi"} · ${money(scored.perHourCents, cur)}/hr" +
                 o.distanceKm?.let {
                     " · ${"%.1f".format(if (isKm) it else it * 0.621371)} ${if (isKm) "km" else "mi"}"
                 }.orEmpty() +
@@ -111,6 +132,18 @@ class OverlayController(private val service: AccessibilityService) {
             container.addView(row)
         }
 
+        // Offer's own expiry timer, if the card showed one ("0:15", "12s").
+        if (autoAcceptSec <= 0 && o.expiresInSec != null) {
+            expiry = TextView(service).apply {
+                text = "Expires in ${o.expiresInSec}s"
+                setTextColor(Color.parseColor("#8E8E93"))
+                textSize = 12f
+                setPadding(0, 8.dp(), 0, 0)
+            }
+            container.addView(expiry)
+            tickExpiry(o.expiresInSec)
+        }
+
         // Mystro-style countdown strip: auto-accept fires when it hits 0,
         // tapping it cancels and leaves the offer alone.
         if (autoAcceptSec > 0) {
@@ -147,11 +180,14 @@ class OverlayController(private val service: AccessibilityService) {
     }
 
     fun hide() {
+        expiryTicker?.let { tickerHandler.removeCallbacks(it) }
+        expiryTicker = null
         view?.let {
             try { wm.removeView(it) } catch (_: Exception) {}
         }
         view = null
         countdown = null
+        expiry = null
     }
 
     enum class Action { ACCEPT, DECLINE, CANCEL_AUTO }

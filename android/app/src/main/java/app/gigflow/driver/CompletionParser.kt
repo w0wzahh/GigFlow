@@ -13,8 +13,7 @@ package app.gigflow.driver
  */
 object CompletionParser {
 
-    private val MONEY = Regex("""\$\s*(\d{1,4}(?:[.,]\d{2})?)""")
-    private val TIP_WORD = Regex("""tip|gratuit""", RegexOption.IGNORE_CASE)
+    private val TIP_WORD = Regex("""tip|gratuit|borravaló""", RegexOption.IGNORE_CASE)
 
     // Phrases that only appear on post-trip / earnings-summary screens.
     private val COMPLETED = Regex(
@@ -31,6 +30,7 @@ object CompletionParser {
     data class Completion(
         val payoutCents: Int,
         val tipCents: Int?,
+        val currencySymbol: String,
         val fingerprint: String,
     )
 
@@ -39,22 +39,24 @@ object CompletionParser {
         if (texts.none { COMPLETED.containsMatchIn(it) }) return null
         if (texts.any { PENDING.containsMatchIn(it) }) return null
 
+        data class M(val amount: Double, val currency: String, val isTip: Boolean)
         val money = nodes.mapNotNull { n ->
-            MONEY.find(n.text)?.let {
-                it.groupValues[1].replace(",", ".").toDoubleOrNull() to
-                    TIP_WORD.containsMatchIn(n.text)
+            OfferParser.moneyOf(n.text)?.let { (a, c) ->
+                M(a, c, TIP_WORD.containsMatchIn(n.text))
             }
         }
-        val payout = money.filter { (a, tip) -> a != null && !tip && a > 0.5 }
-            .maxOfOrNull { it.first!! } ?: return null
+        val payout = money.filter { !it.isTip && it.amount > 0.5 }
+            .maxOfOrNull { it.amount } ?: return null
         if (payout > 5000) return null // absurd — likely a substring artefact
+        val currency = money.firstOrNull { it.amount == payout }?.currency ?: "$"
 
-        val tip = money.filter { (_, tip) -> tip }
-            .maxOfOrNull { it.first!! }
+        val tip = money.filter { it.isTip }
+            .maxOfOrNull { it.amount }
 
         return Completion(
             payoutCents = (payout * 100).toInt(),
             tipCents = tip?.let { (it * 100).toInt() },
+            currencySymbol = currency,
             // Minute-bucket fingerprint: the same screen can't re-log within
             // the bucket, a new completion (different amount/time) can.
             fingerprint = "$pkg:${(payout * 100).toInt()}:${System.currentTimeMillis() / 300_000}",

@@ -23,6 +23,10 @@ data class DetectedOffer(
     /** True for scheduled/reservation work (e.g. "Reserved", "Scheduled")
      * rather than a live on-demand ping. */
     val isReservation: Boolean = false,
+    /** Display symbol detected on the card — "$", "Ft", "€", … */
+    val currencySymbol: String = "$",
+    /** Seconds the offer gives the driver to decide, if shown on-card. */
+    val expiresInSec: Int? = null,
 ) {
     /** Stable-ish key for dedupe within a short window. */
     val fingerprint: String

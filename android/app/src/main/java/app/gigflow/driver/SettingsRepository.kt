@@ -37,6 +37,13 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat("max_distance_km", 40f).toDouble()
         set(v) = prefs.edit().putFloat("max_distance_km", v.toFloat()).apply()
 
+    /** Currency symbol used in labels — thresholds are plain numbers, so a
+     * Wolt driver sets Ft amounts and sees "Ft / km" instead of "$ / km". */
+    var currencySymbol: String
+        get() = prefs.getString("currency_symbol", "$") ?: "$"
+        set(v) = prefs.edit().putString("currency_symbol",
+            v.trim().ifEmpty { "$" }).apply()
+
     /** Display unit: "MI" or "KM". */
     var distanceUnit: String
         get() = prefs.getString("distance_unit", "MI") ?: "MI"

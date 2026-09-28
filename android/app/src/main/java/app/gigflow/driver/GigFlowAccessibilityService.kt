@@ -45,6 +45,10 @@ class GigFlowAccessibilityService : AccessibilityService() {
     companion object {
         /** Auto-stop shift tracking after this long with no driver-app events. */
         private const val IDLE_STOP_MS = 30 * 60_000L
+
+        /** Live instance while the service is enabled — null otherwise. */
+        @Volatile var instance: GigFlowAccessibilityService? = null
+            private set
     }
 
     override fun onServiceConnected() {
@@ -53,6 +57,38 @@ class GigFlowAccessibilityService : AccessibilityService() {
         overlay = OverlayController(this)
         localDb = LocalDb(this)
         tts = TextToSpeech(this) { /* ready */ }
+        instance = this
+    }
+
+    /**
+     * Synthetic test offer — exercises score → overlay → voice without
+     * logging or automation taps, so drivers can verify the pipeline before
+     * going online. Called from Assist → "Send a test offer".
+     */
+    fun testOffer() {
+        handler.post {
+            val o = DetectedOffer(
+                appPackage = "app.gigflow.test",
+                payoutCents = (12.50 * 100).toInt(),
+                tipCents = 200,
+                distanceKm = 4.2,
+                durationMin = 18.0,
+                extraDistanceKm = null,
+                acceptNode = null,
+                declineNode = null,
+                rawTexts = listOf("Test offer"),
+                currencySymbol = settings.currencySymbol,
+                expiresInSec = 12,
+            )
+            val scored = RuleEngine.score(o, settings.rules())
+            overlay.show(scored) { overlay.hide() }
+            if (settings.voiceAlerts) {
+                tts?.speak(
+                    "Test offer, ${"%.2f".format(o.payoutCents / 100.0)} ${currencyName(o.currencySymbol)}",
+                    TextToSpeech.QUEUE_FLUSH, null, "test",
+                )
+            }
+        }
     }
 
     /** Last-known fix — good enough for tagging where an offer appeared. */
@@ -125,6 +161,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             lat = loc?.first,
             lng = loc?.second,
             reservation = offer.isReservation,
+            currency = offer.currencySymbol,
         ))
         GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, scored, "shown")
 
@@ -136,7 +173,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
                 Verdict.BAD -> "Skip it"
             }
             tts?.speak(
-                "$label, ${"%.2f".format(offer.payoutCents / 100.0)} dollars",
+                "$label, ${"%.2f".format(offer.payoutCents / 100.0)} ${currencyName(offer.currencySymbol)}",
                 TextToSpeech.QUEUE_FLUSH, null, "offer",
             )
         }
@@ -262,10 +299,25 @@ class GigFlowAccessibilityService : AccessibilityService() {
         }
         if (settings.voiceAlerts) {
             tts?.speak(
-                "Logged ${"%.2f".format(comp.payoutCents / 100.0)} dollars",
+                "Logged ${"%.2f".format(comp.payoutCents / 100.0)} ${currencyName(comp.currencySymbol)}",
                 TextToSpeech.QUEUE_ADD, null, "earn",
             )
         }
+    }
+
+    /** Spoken currency name for TTS — "Ft" reads as "forints", etc. */
+    private fun currencyName(symbol: String): String = when (symbol) {
+        "$" -> "dollars"
+        "€" -> "euros"
+        "£" -> "pounds"
+        "Ft" -> "forints"
+        "kr" -> "kroner"
+        "zł" -> "zloty"
+        "lei" -> "lei"
+        "Kč" -> "koruna"
+        "₺" -> "lira"
+        "₴" -> "hryvnia"
+        else -> symbol
     }
 
     private fun cancelAutoAccept() {
@@ -283,6 +335,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             verdict = s.verdict.name, action = action,
             lat = null, lng = null,
             reservation = o.isReservation,
+            currency = o.currencySymbol,
         ))
         GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, s, action)
     }
@@ -302,6 +355,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        instance = null
         cancelAutoAccept()
         overlay.hide()
         tts?.shutdown()

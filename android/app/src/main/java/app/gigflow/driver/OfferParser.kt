@@ -13,7 +13,49 @@ import android.view.accessibility.AccessibilityNodeInfo
  */
 object OfferParser {
 
-    val MONEY = Regex("""\$\s*(\d{1,4}(?:[.,]\d{2})?)""")
+    // Money: symbol/code-prefixed ($12.50, €8.90) or code-suffixed (850 Ft,
+    // 12,50 EUR). Drivers in Europe get Ft/kr/zł cards — $-only parsing
+    // means nothing is ever detected. Deliberately case-sensitive: lowercase
+    // "ft" is feet, not forint. (?U) makes \b Unicode-aware so tokens ending
+    // in ł/č/₺ still match at end-of-string.
+    val MONEY = Regex(
+        "(?U)([$€£₺₴]|USD|EUR|GBP)\\s*(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)|" +
+            "(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)\\s*" +
+            "(Ft|HUF|huf|EUR|eur|kr|Kr|KR|SEK|NOK|DKK|PLN|pln|zł|Zł|RON|ron|" +
+            "lei|CZK|czk|Kč|TL|TRY|uah|UAH|₺|₴|USD|usd)\\b",
+    )
+    private val CURRENCY_WORDS = mapOf(
+        "$" to "$", "€" to "€", "£" to "£",
+        "ft" to "Ft", "huf" to "Ft", "eur" to "€", "gbp" to "£",
+        "kr" to "kr", "sek" to "kr", "nok" to "kr", "dkk" to "kr",
+        "pln" to "zł", "zł" to "zł", "ron" to "lei", "lei" to "lei",
+        "czk" to "Kč", "kč" to "Kč", "tl" to "₺", "try" to "₺", "₺" to "₺",
+        "uah" to "₴", "₴" to "₴", "usd" to "$",
+    )
+
+    /**
+     * Locale-safe amount parse: "12,50"→12.5, "1.850"→1850 (3+ digits after
+     * the last separator = thousands), "2 340"→2340, "1,234.56"→1234.56.
+     */
+    private fun parseAmount(raw: String): Double? {
+        val s = raw.replace(" ", "").replace(" ", "").replace("'", "")
+        val lastSep = maxOf(s.lastIndexOf('.'), s.lastIndexOf(','))
+        val normalized = if (lastSep >= 0 && s.length - lastSep - 1 in 1..2) {
+            s.substring(0, lastSep).filter { it.isDigit() } + "." + s.substring(lastSep + 1)
+        } else {
+            s.filter { it.isDigit() }
+        }
+        return normalized.toDoubleOrNull()
+    }
+
+    /** Extract amount + display symbol from a text, or null. */
+    fun moneyOf(text: String): Pair<Double, String>? {
+        val m = MONEY.find(text) ?: return null
+        val amount = parseAmount(m.groupValues[2].ifEmpty { m.groupValues[3] })
+            ?: return null
+        val token = m.groupValues[1].ifEmpty { m.groupValues[4] }
+        return amount to (CURRENCY_WORDS[token.lowercase()] ?: "$")
+    }
     private val MILES = Regex("""(\d{1,3}(?:\.\d+)?)\s*(mi|miles?|mile)\b""", RegexOption.IGNORE_CASE)
     private val KM = Regex("""(\d{1,3}(?:\.\d+)?)\s*km\b""", RegexOption.IGNORE_CASE)
     private val MINUTES = Regex("""(\d{1,3})\s*min""", RegexOption.IGNORE_CASE)
@@ -23,6 +65,11 @@ object OfferParser {
     private val ACCEPT_WORDS = Regex("""accept|confirm|match me|claim|grab it|start delivery""", RegexOption.IGNORE_CASE)
     private val DECLINE_WORDS = Regex("""decline|pass|reject|no thanks|skip""", RegexOption.IGNORE_CASE)
     private val TIMER_HINTS = Regex("""^\d{1,2}$|seconds""") // countdown numbers — ignore for duration
+    // Offer expiry countdown: "0:12", "12s", "12 sec", "expires in 12".
+    private val EXPIRY = Regex(
+        """^(\d{1,2}):(\d{2})$|^(\d{1,2})\s*(s|sec|seconds?)\b|expires? in (\d{1,2})""",
+        RegexOption.IGNORE_CASE,
+    )
     private val RESERVATION = Regex("""reserv|scheduled""", RegexOption.IGNORE_CASE)
 
     data class FlatNode(
@@ -57,21 +104,21 @@ object OfferParser {
         val texts = nodes.map { it.text }
 
         // Collect money figures with their context. The card total is usually
-        // the largest standalone $ amount; "incl. tip" lines become tips.
+        // the largest standalone amount; "incl. tip" lines become tips.
+        data class Money(val node: FlatNode, val amount: Double, val currency: String, val raw: String)
         val moneyNodes = nodes.mapNotNull { n ->
-            MONEY.find(n.text)?.let { Triple(n, it.groupValues[1].replace(",", ".").toDoubleOrNull(), n.text) }
+            moneyOf(n.text)?.let { (amount, cur) -> Money(n, amount, cur, n.text) }
         }
         if (moneyNodes.isEmpty()) return null
 
         val payout = moneyNodes
-            .filter { (_, amount, raw) ->
-                amount != null && amount > 0.5 && !TIP_WORD.containsMatchIn(raw)
-            }
-            .maxOfOrNull { it.second!! } ?: return null
+            .filter { it.amount > 0.5 && !TIP_WORD.containsMatchIn(it.raw) }
+            .maxOfOrNull { it.amount } ?: return null
+        val currency = moneyNodes.firstOrNull { it.amount == payout }?.currency ?: "$"
 
         val tip = moneyNodes
-            .filter { (_, amount, raw) -> amount != null && TIP_WORD.containsMatchIn(raw) }
-            .maxOfOrNull { it.second!! }
+            .filter { TIP_WORD.containsMatchIn(it.raw) }
+            .maxOfOrNull { it.amount }
 
         // Distances: take the largest plausible one (total trip distance).
         val distanceKm = texts.mapNotNull { t ->
@@ -88,6 +135,15 @@ object OfferParser {
                 h * 60 + mnt
             } ?: MINUTES.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
         }.filter { it in 1.0..600.0 }.maxOrNull()
+
+        // Expiry countdown — "0:15" / "12s" style, Mystro shows it ticking.
+        val expiresInSec = texts.mapNotNull { t ->
+            EXPIRY.find(t.trim())?.let { m ->
+                val mm = m.groupValues[1].toIntOrNull()
+                if (mm != null) mm * 60 + (m.groupValues[2].toIntOrNull() ?: 0)
+                else (m.groupValues[3].ifEmpty { m.groupValues[5] }).toIntOrNull()
+            }
+        }.filter { it in 1..120 }.minOrNull()
 
         // Need at least payout + one of distance/duration to call it an offer.
         if (distanceKm == null && durationMin == null) return null
@@ -112,6 +168,8 @@ object OfferParser {
             acceptNode = accept,
             declineNode = decline,
             rawTexts = texts,
+            currencySymbol = currency,
+            expiresInSec = expiresInSec,
             isReservation = texts.any { RESERVATION.containsMatchIn(it) },
         )
     }
