@@ -150,16 +150,10 @@ object Ios {
         setColor(p.card)
     }
 
-    /** Symbols that trail the amount ("1 850 Ft", "45 zł") instead of
-     *  leading it ("$12.50"). These currencies are also zero-decimal in
-     *  practice, so whole units are shown. */
-    private val SUFFIX_CURRENCIES = setOf("Ft", "kr", "zł", "lei", "Kč", "₺", "₴")
-
+    /** Currency-aware money render — placement/decimals come from the
+     *  registry in [Currencies] ("1 850 Ft", "CHF 12.50", "¥1,200"). */
     fun money(cents: Int?, symbol: String = "$"): String =
-        cents?.let {
-            if (symbol in SUFFIX_CURRENCIES) "%,.0f %s".format(it / 100.0, symbol)
-            else "$symbol%.2f".format(it / 100.0)
-        } ?: "—"
+        cents?.let { app.gigflow.driver.Currencies.format(it, symbol) } ?: "—"
 
     fun verdictColor(v: VerdictCompat, p: Palette) = when (v) {
         VerdictCompat.GOOD -> p.green

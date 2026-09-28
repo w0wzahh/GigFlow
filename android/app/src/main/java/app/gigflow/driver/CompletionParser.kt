@@ -34,14 +34,19 @@ object CompletionParser {
         val fingerprint: String,
     )
 
-    fun parse(pkg: String, nodes: List<OfferParser.FlatNode>): Completion? {
+    fun parse(
+        pkg: String,
+        nodes: List<OfferParser.FlatNode>,
+        extra: Regex? = null,
+        extraSymbol: String = "$",
+    ): Completion? {
         val texts = nodes.map { it.text }
         if (texts.none { COMPLETED.containsMatchIn(it) }) return null
         if (texts.any { PENDING.containsMatchIn(it) }) return null
 
         data class M(val amount: Double, val currency: String, val isTip: Boolean)
         val money = nodes.mapNotNull { n ->
-            OfferParser.moneyOf(n.text)?.let { (a, c) ->
+            OfferParser.moneyOf(n.text, extra, extraSymbol)?.let { (a, c) ->
                 M(a, c, TIP_WORD.containsMatchIn(n.text))
             }
         }

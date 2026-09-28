@@ -142,18 +142,25 @@ class GigFlowAccessibilityService : AccessibilityService() {
         if (now - lastScanAt < 350) return // throttle contentChanged storms
         lastScanAt = now
 
+        // Symbols beyond the built-in set (R$, ₩, KSh…) match through the
+        // user's configured currency so any market parses.
+        val curSymbol = settings.currencySymbol
+        val extraRe = OfferParser.extraMoney(settings.currencyCode, curSymbol)
+
         val root = appWindowRoot(pkg) ?: run { maybeOfferGone(now); return }
 
         val nodes = OfferParser.flatten(root)
-        val offer = OfferParser.parse(pkg, nodes)
+        val offer = OfferParser.parse(pkg, nodes, extraRe, curSymbol)
         if (offer == null) {
             // A screen with a money figure but no parse is a "miss" — the
             // card was probably there but the layout beat the heuristic.
             // Record it so Diagnostics can show what we saw.
-            val hasMoney = nodes.any { OfferParser.MONEY.containsMatchIn(it.text) }
+            val hasMoney = nodes.any {
+                OfferParser.moneyOf(it.text, extraRe, curSymbol) != null
+            }
             Diagnostics.record(this, pkg, if (hasMoney) "miss" else "idle",
                 nodes.map { it.text })
-            maybeLogCompletion(pkg, nodes, now)
+            maybeLogCompletion(pkg, nodes, now, extraRe, curSymbol)
             maybeOfferGone(now)
             return
         }
@@ -300,9 +307,15 @@ class GigFlowAccessibilityService : AccessibilityService() {
      * Post-trip earnings capture — reads the completed-delivery / earnings
      * summary screen and records the payout as a local earning.
      */
-    private fun maybeLogCompletion(pkg: String, nodes: List<OfferParser.FlatNode>, now: Long) {
+    private fun maybeLogCompletion(
+        pkg: String,
+        nodes: List<OfferParser.FlatNode>,
+        now: Long,
+        extra: Regex? = null,
+        extraSymbol: String = "$",
+    ) {
         if (!settings.autoLogEarnings) return
-        val comp = CompletionParser.parse(pkg, nodes) ?: return
+        val comp = CompletionParser.parse(pkg, nodes, extra, extraSymbol) ?: return
         if (!loggedCompletions.add(comp.fingerprint)) return // already logged this screen
         if (loggedCompletions.size > 200) loggedCompletions.clear()
 
@@ -323,29 +336,10 @@ class GigFlowAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** "12.50 dollars" / "1850 forints" — zero-decimal currencies speak
-     *  whole units, nobody says "eighteen fifty point zero zero forints". */
-    private fun spokenAmount(cents: Int, symbol: String): String {
-        val name = currencyName(symbol)
-        return if (symbol in setOf("Ft", "kr", "zł", "lei", "Kč", "₺", "₴"))
-            "%.0f %s".format(cents / 100.0, name)
-        else "%.2f %s".format(cents / 100.0, name)
-    }
-
-    /** Spoken currency name for TTS — "Ft" reads as "forints", etc. */
-    private fun currencyName(symbol: String): String = when (symbol) {
-        "$" -> "dollars"
-        "€" -> "euros"
-        "£" -> "pounds"
-        "Ft" -> "forints"
-        "kr" -> "kroner"
-        "zł" -> "zloty"
-        "lei" -> "lei"
-        "Kč" -> "koruna"
-        "₺" -> "lira"
-        "₴" -> "hryvnia"
-        else -> symbol
-    }
+    /** "12.50 dollars" / "1850 forints" — names and zero-decimal handling
+     *  come from the currency registry. */
+    private fun spokenAmount(cents: Int, symbol: String): String =
+        Currencies.spokenAmount(cents, symbol)
 
     private fun cancelAutoAccept() {
         countdownTicker?.let { handler.removeCallbacks(it) }

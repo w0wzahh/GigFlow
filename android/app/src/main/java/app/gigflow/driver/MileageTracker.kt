@@ -72,22 +72,7 @@ class MileageTracker : Service(), LocationListener {
             mgr.createNotificationChannel(NotificationChannel(
                 CHANNEL, "Mileage tracking", NotificationManager.IMPORTANCE_LOW))
         }
-        val open = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE,
-        )
-        val stop = PendingIntent.getService(
-            this, 1, stopIntent(this), PendingIntent.FLAG_IMMUTABLE,
-        )
-        val n = Notification.Builder(this, CHANNEL)
-            .setContentTitle("GigFlow is tracking mileage")
-            .setContentText("Shift active — tap to open")
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, "Stop shift", stop).build())
-            .setOngoing(true)
-            .build()
-        startForeground(NOTIF_ID, n)
+        startForeground(NOTIF_ID, buildNotification("Shift active — tap to open"))
 
         running = true
         kmSoFar = 0.0
@@ -123,15 +108,30 @@ class MileageTracker : Service(), LocationListener {
         last = location
     }
 
-    private fun updateNotification() {
-        val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val n = Notification.Builder(this, CHANNEL)
+    /** Same notification shape every time — a rebuilt notification must
+     *  re-attach the tap-to-open intent and Stop action or they vanish
+     *  after the first odometer update. */
+    private fun buildNotification(text: String): Notification {
+        val open = PendingIntent.getActivity(
+            this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val stop = PendingIntent.getService(
+            this, 1, stopIntent(this), PendingIntent.FLAG_IMMUTABLE,
+        )
+        return Notification.Builder(this, CHANNEL)
             .setContentTitle("GigFlow is tracking mileage")
-            .setContentText("%.1f km so far".format(kmSoFar))
+            .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setContentIntent(open)
+            .addAction(Notification.Action.Builder(null, "Stop shift", stop).build())
             .setOngoing(true)
             .build()
-        mgr.notify(NOTIF_ID, n)
+    }
+
+    private fun updateNotification() {
+        val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        mgr.notify(NOTIF_ID, buildNotification("%.1f km so far".format(kmSoFar)))
     }
 
     private fun stopTracking() {

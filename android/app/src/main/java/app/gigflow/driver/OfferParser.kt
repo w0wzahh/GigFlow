@@ -22,7 +22,7 @@ object OfferParser {
         "(?U)([$€£₺₴]|USD|EUR|GBP)\\s*(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)|" +
             "(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)\\s*" +
             "(Ft|HUF|huf|EUR|eur|kr|Kr|KR|SEK|NOK|DKK|PLN|pln|zł|Zł|RON|ron|" +
-            "lei|CZK|czk|Kč|TL|TRY|uah|UAH|₺|₴|USD|usd)\\b",
+            "lei|CZK|czk|Kč|TL|TRY|uah|UAH|₺|₴|USD|usd)(?![\\p{L}\\p{N}])",
     )
     private val CURRENCY_WORDS = mapOf(
         "$" to "$", "€" to "€", "£" to "£",
@@ -48,13 +48,59 @@ object OfferParser {
         return normalized.toDoubleOrNull()
     }
 
-    /** Extract amount + display symbol from a text, or null. */
-    fun moneyOf(text: String): Pair<Double, String>? {
-        val m = MONEY.find(text) ?: return null
-        val amount = parseAmount(m.groupValues[2].ifEmpty { m.groupValues[3] })
+    /**
+     * Money matcher for the user's *configured* currency, covering symbols
+     * the built-in set doesn't know (R$, ₩, "KSh", …). Both the symbol and
+     * the ISO code match, prefix or suffix. Cached — building a regex on
+     * every 350ms scan would be wasteful.
+     */
+    private var extraKey = ""
+    private var extraRe: Regex? = null
+
+    /** ISO codes that double as everyday words — "TOP 100 drivers" must not
+     *  parse as 100 pa'anga. The symbol still matches for these currencies. */
+    private val WORDY_CODES = setOf(
+        "ALL", "AND", "ARE", "BAM", "BOB", "BUT", "CAN", "FOR", "GEL", "GET",
+        "HAS", "HIT", "HOT", "MAD", "MAN", "NEW", "NOW", "OFF", "ONE", "PAY",
+        "PEN", "PER", "RON", "SAR", "SEE", "SOS", "TOP", "TRY", "TWO", "USE",
+        "VES", "WON", "YER", "CUSTOM",
+    )
+
+    fun extraMoney(code: String, symbol: String): Regex? {
+        val toks = listOf(symbol, code)
+            .map { it.trim() }
+            .filter {
+                it.isNotEmpty() &&
+                    it.lowercase() !in CURRENCY_WORDS &&
+                    it.uppercase() !in WORDY_CODES
+            }
+            .distinct()
+        if (toks.isEmpty()) return null
+        val key = toks.joinToString("|")
+        if (key == extraKey) return extraRe
+        val alt = toks.joinToString("|") { Regex.escape(it) }
+        val num = "(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)"
+        // Lookahead, not \b — \b can't anchor after non-word symbols (₺, ₩, R$)
+        // so "100 ₺" would silently fail at end-of-string.
+        extraRe = Regex("(?U)(?:$alt)\\s*$num|$num\\s*(?:$alt)(?![\\p{L}\\p{N}])")
+        extraKey = key
+        return extraRe
+    }
+
+    /** Extract amount + display symbol from a text, or null. [extra] is the
+     *  configured-currency matcher from [extraMoney]; its hits report
+     *  [extraSymbol] as the currency. */
+    fun moneyOf(text: String, extra: Regex? = null, extraSymbol: String = "$"): Pair<Double, String>? {
+        MONEY.find(text)?.let { m ->
+            val amount = parseAmount(m.groupValues[2].ifEmpty { m.groupValues[3] })
+                ?: return@let
+            val token = m.groupValues[1].ifEmpty { m.groupValues[4] }
+            return amount to (CURRENCY_WORDS[token.lowercase()] ?: "$")
+        }
+        val m = extra?.find(text) ?: return null
+        val amount = parseAmount(m.groupValues[1].ifEmpty { m.groupValues[2] })
             ?: return null
-        val token = m.groupValues[1].ifEmpty { m.groupValues[4] }
-        return amount to (CURRENCY_WORDS[token.lowercase()] ?: "$")
+        return amount to extraSymbol
     }
     private val MILES = Regex("""(\d{1,3}(?:\.\d+)?)\s*(mi|miles?|mile)\b""", RegexOption.IGNORE_CASE)
     private val KM = Regex("""(\d{1,3}(?:\.\d+)?)\s*km\b""", RegexOption.IGNORE_CASE)
@@ -100,14 +146,19 @@ object OfferParser {
         return out
     }
 
-    fun parse(pkg: String, nodes: List<FlatNode>): DetectedOffer? {
+    fun parse(
+        pkg: String,
+        nodes: List<FlatNode>,
+        extra: Regex? = null,
+        extraSymbol: String = "$",
+    ): DetectedOffer? {
         val texts = nodes.map { it.text }
 
         // Collect money figures with their context. The card total is usually
         // the largest standalone amount; "incl. tip" lines become tips.
         data class Money(val node: FlatNode, val amount: Double, val currency: String, val raw: String)
         val moneyNodes = nodes.mapNotNull { n ->
-            moneyOf(n.text)?.let { (amount, cur) -> Money(n, amount, cur, n.text) }
+            moneyOf(n.text, extra, extraSymbol)?.let { (amount, cur) -> Money(n, amount, cur, n.text) }
         }
         if (moneyNodes.isEmpty()) return null
 

@@ -32,7 +32,10 @@ class DashboardScreen(
         val c = screen.column
 
         c.addView(greeting())
-        if (!OverlayController.isServiceEnabled(ctx)) c.addView(serviceBanner())
+        if (!OverlayController.isServiceEnabled(ctx)) {
+            c.addView(serviceBanner())
+            c.addView(gap(10f))
+        }
         c.addView(heroCard())
         c.addView(gap(10f))
         c.addView(shareRow())
@@ -67,6 +70,10 @@ class DashboardScreen(
      * manual tracker, which is the #1 "it doesn't work" complaint. */
     private fun serviceBanner(): View {
         val card = Sections.card(ctx, p)
+        // Warning-tinted so it reads as a banner, not another stat card.
+        card.background = Ios.stroke(Ios.R_CARD,
+            Color.argb(38, Color.red(p.orange), Color.green(p.orange), Color.blue(p.orange)),
+            Color.argb(110, Color.red(p.orange), Color.green(p.orange), Color.blue(p.orange)), ctx)
         card.addView(Sections.row(ctx, p,
             title = "Offer assistant is off",
             subtitle = "Offers can't be scored or auto-accepted until you enable the accessibility service",

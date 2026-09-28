@@ -37,12 +37,32 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat("max_distance_km", 40f).toDouble()
         set(v) = prefs.edit().putFloat("max_distance_km", v.toFloat()).apply()
 
-    /** Currency symbol used in labels — thresholds are plain numbers, so a
-     * Wolt driver sets Ft amounts and sees "Ft / km" instead of "$ / km". */
+    /**
+     * Currency as an ISO-4217 code ("USD", "HUF") — symbols alone collide
+     * ("kr" is SEK/NOK/DKK/ISK, "$" spans a dozen currencies), so the code is
+     * the source of truth and the symbol derives from [Currencies].
+     * "CUSTOM" = a hand-typed symbol the registry doesn't know.
+     */
+    var currencyCode: String
+        get() = prefs.getString("currency_code", null) ?: run {
+            // Migrate the old symbol-only pref: known symbols map to codes,
+            // anything unrecognized becomes a custom symbol.
+            val sym = prefs.getString("currency_symbol", "$") ?: "$"
+            (Currencies.forSymbol(sym)?.code ?: "CUSTOM").also {
+                prefs.edit().putString("currency_code", it).apply()
+            }
+        }
+        set(v) = prefs.edit().putString("currency_code", v).apply()
+
+    /** Display symbol — derived from the code, or the custom string. */
     var currencySymbol: String
-        get() = prefs.getString("currency_symbol", "$") ?: "$"
-        set(v) = prefs.edit().putString("currency_symbol",
-            v.trim().ifEmpty { "$" }).apply()
+        get() = Currencies.forCode(currencyCode)?.symbol
+            ?: prefs.getString("currency_symbol", "$") ?: "$"
+        set(v) = prefs.edit()
+            .putString("currency_symbol", v.trim().ifEmpty { "$" })
+            .putString("currency_code",
+                Currencies.forSymbol(v.trim())?.code ?: "CUSTOM")
+            .apply()
 
     /** Display unit: "MI" or "KM". */
     var distanceUnit: String

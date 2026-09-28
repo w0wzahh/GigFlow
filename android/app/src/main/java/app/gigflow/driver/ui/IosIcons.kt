@@ -226,6 +226,19 @@ class IosIcon(
                 p.addArc(RectF(cx - s * 0.55f, cy + s * 0.02f, cx + s * 0.55f, cy + s * 1.1f), 180f, 180f)
                 canvas.drawPath(p, paint)
             }
+            "bell" -> {
+                p.moveTo(cx - s * 0.55f, cy + s * 0.28f)
+                p.lineTo(cx - s * 0.55f, cy - s * 0.08f)
+                p.cubicTo(cx - s * 0.55f, cy - s * 0.58f, cx - s * 0.22f, cy - s * 0.72f, cx, cy - s * 0.72f)
+                p.cubicTo(cx + s * 0.22f, cy - s * 0.72f, cx + s * 0.55f, cy - s * 0.58f, cx + s * 0.55f, cy - s * 0.08f)
+                p.lineTo(cx + s * 0.55f, cy + s * 0.28f)
+                p.close()
+                canvas.drawPath(p, paint)
+                canvas.drawLine(cx - s * 0.7f, cy + s * 0.28f, cx + s * 0.7f, cy + s * 0.28f, paint)
+                paint.style = Paint.Style.FILL
+                canvas.drawCircle(cx, cy + s * 0.5f, s * 0.15f, paint)
+                paint.style = Paint.Style.STROKE
+            }
             "mappin" -> {
                 p.moveTo(cx, cy + s * 0.75f)
                 p.cubicTo(cx - s * 0.8f, cy - s * 0.1f, cx - s * 0.45f, cy - s * 0.75f, cx, cy - s * 0.75f)

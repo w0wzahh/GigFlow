@@ -31,10 +31,13 @@ Five tabs behind a floating frosted tab bar:
 - Reads the offer card off the screen (payout, distance, duration,
   accept/decline buttons, the offer's own countdown when shown) with
   text-pattern parsing — layout-independent.
-- **Multi-currency**: `$ € £ Ft HUF kr zł lei Kč ₺ ₴` and code-prefixed
-  `USD/EUR/GBP` amounts, in either prefix or suffix position, with
-  locale-aware amounts (`1.850 Ft`, `12,50 EUR`, `2 340 Ft` all parse).
-  A `Currency` field in Offer rules relabels every threshold (`Ft / km`).
+- **Multi-currency**: `Assistant → Offer rules → Currency` offers ~80
+  currencies (`$ € £ Ft zł kr ₺ ₹ ₩ د.إ R$ …`) plus a custom-symbol escape
+  hatch. The parser matches the built-in symbol set *and* whatever currency
+  you picked — symbol or ISO code, prefix or suffix, locale-aware amounts
+  (`1.850 Ft`, `12,50 EUR`, `R$ 9,90` all parse). Display follows each
+  currency's convention (`1 850 Ft`, `CHF 12.50`, `¥1,200`) and voice
+  alerts speak the real name ("forints", "zloty").
 - Scores against your thresholds and floats a verdict card over the app:
   `GOOD OFFER` / `BORDERLINE` / `SKIP IT` with per-distance and per-hour
   rates, tap shortcuts, and a ticking "Expires in Ns" line when the card

@@ -12,6 +12,8 @@ import org.json.JSONObject
 import app.gigflow.driver.*
 import app.gigflow.driver.ui.Ios.Palette
 import app.gigflow.driver.ui.Ios.dp
+import app.gigflow.driver.ui.Ios.haptic
+import app.gigflow.driver.ui.Ios.pressable
 
 /** Assist — assistant status, rules, automation switches, diagnostics. */
 class AssistScreen(
@@ -23,11 +25,16 @@ class AssistScreen(
     val screen = Screen(ctx, p, "Assistant")
     private val ctx: Context = ctx
 
+    private fun gap(h: Float) = View(ctx).apply {
+        layoutParams = LinearLayout.LayoutParams(1, dp(ctx, h))
+    }
+
     fun refresh() {
         screen.column.removeAllViews()
         val c = screen.column
 
         c.addView(statusCard())
+        c.addView(gap(10f))
         c.addView(setupCard())
         c.addView(Sections.header(ctx, p, "Automation"))
         c.addView(automationCard())
@@ -84,18 +91,20 @@ class AssistScreen(
                     setTextColor(p.label2)
                 })
             })
-            if (!on) {
-                addView(iosButton(ctx, p, "Enable").apply {
-                    minHeight = dp(ctx, 34f)
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT, dp(ctx, 34f))
-                    textSize = Ios.T_SUBHEAD
-                    setOnClickListener {
-                        ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    }
-                })
-            }
         })
+        // Full-width button below the text — an inline button crowded the
+        // subtitle and clipped mid-word on narrower screens.
+        if (!on) {
+            card.addView(LinearLayout(ctx).apply {
+                setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), dp(ctx, 14f))
+                val btn = iosButton(ctx, p, "Enable now — takes 10 seconds")
+                addView(btn, LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+                btn.setOnClickListener {
+                    ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+            })
+        }
         return card
     }
 
@@ -111,25 +120,25 @@ class AssistScreen(
 
         val card = Sections.card(ctx, p)
         var first = true
-        fun step(title: String, subtitle: String, done: Boolean, action: (() -> Unit)?) {
+        fun step(title: String, subtitle: String, glyph: String, done: Boolean, action: (() -> Unit)?) {
             if (!first) card.addView(Sections.separator(ctx, p))
             first = false
             card.addView(Sections.row(ctx, p,
                 title = title,
                 subtitle = subtitle,
-                iconGlyph = if (done) "checkmark" else "chevron.right",
+                iconGlyph = if (done) "checkmark" else glyph,
                 iconTint = if (done) p.green else p.orange,
                 chevron = !done && action != null,
             ) { action?.invoke() })
         }
         step("Enable the accessibility service",
             "Required — without it the assistant can't see offers at all",
-            serviceOn) {
+            "slider", serviceOn) {
             ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         step("Allow location access",
-            "Needed for automatic shift mileage and the work heatmap",
-            locOn) {
+            "Needed for automatic shift mileage",
+            "mappin", locOn) {
             (ctx as? android.app.Activity)?.requestPermissions(
                 arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION,
                     android.Manifest.permission.ACCESS_COARSE_LOCATION),
@@ -138,7 +147,7 @@ class AssistScreen(
         }
         step("Allow notifications",
             "Shows the shift-tracking notification while a shift runs",
-            notifOn) {
+            "bell", notifOn) {
             (ctx as? android.app.Activity)?.requestPermissions(
                 arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 9)
         }
@@ -274,8 +283,14 @@ class AssistScreen(
         val card = Sections.card(ctx, p)
         val isKm = settings.distanceUnit == "KM"
         val cur = settings.currencySymbol
-        val (rCur, curField) = Sections.formField(ctx, p, "Currency",
-            settings.currencySymbol, numeric = false, hint = "$ / Ft / €")
+        val curEntry = Currencies.forCode(settings.currencyCode)
+        val rCur = Sections.row(ctx, p,
+            title = "Currency",
+            subtitle = curEntry?.name ?: "Custom symbol",
+            value = if (curEntry != null) "${curEntry.symbol} · ${curEntry.code}"
+                    else settings.currencySymbol,
+            iconGlyph = "globe", iconTint = p.tint, chevron = true,
+        ) { pickCurrency() }
         val (rMile, mile) = Sections.formField(ctx, p,
             "Min $cur / ${if (isKm) "km" else "mile"}",
             "%.2f".format(if (isKm) settings.minPerMileCents / 1.609344 / 100.0 else settings.minPerMileCents / 100.0))
@@ -294,7 +309,6 @@ class AssistScreen(
             addView(btn, LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             btn.setOnClickListener {
-                settings.currencySymbol = curField.text.toString().ifBlank { "$" }
                 val perDist = (mile.text.toString().toDoubleOrNull() ?: 1.5) * 100
                 settings.minPerMileCents = (if (isKm) perDist * 1.609344 else perDist).toInt()
                 settings.minPerHourCents = ((hour.text.toString().toDoubleOrNull() ?: 20.0) * 100).toInt()
@@ -512,6 +526,134 @@ class AssistScreen(
 
     private fun bad(msg: String) {
         Toast.makeText(ctx, "$msg must be a number", Toast.LENGTH_SHORT).show()
+    }
+
+    /** Every currency in the registry, plus a custom-symbol escape hatch. */
+    private fun pickCurrency() {
+        val sheet = IosSheet(ctx, p)
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 4f), dp(ctx, 20f), dp(ctx, 10f))
+            addView(TextView(ctx).apply {
+                text = "Currency"
+                textSize = Ios.T_HEADLINE
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(p.label)
+            })
+            addView(TextView(ctx).apply {
+                text = "Used for rule thresholds, amounts and voice alerts. The assistant matches this currency's symbol and code on offer cards."
+                textSize = Ios.T_FOOTNOTE
+                setTextColor(p.label2)
+                setPadding(0, dp(ctx, 2f), 0, 0)
+            })
+        }
+        sheet.add(col)
+
+        val list = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, 0, dp(ctx, 8f))
+        }
+        Currencies.ALL.forEach { c ->
+            list.addView(currencyRow(c, sheet))
+        }
+        list.addView(Sections.separator(ctx, p))
+        list.addView(Sections.row(ctx, p,
+            title = "Custom symbol…",
+            subtitle = "Type any symbol — offers match on it too",
+            iconGlyph = "plus.circle", iconTint = p.gray,
+            chevron = true,
+        ) { sheet.dismiss(); pickCustomCurrency() })
+
+        val scroll = android.widget.ScrollView(ctx).apply {
+            isVerticalScrollBarEnabled = false
+            addView(list)
+        }
+        sheet.add(scroll)
+        // Cap the list so the sheet stays a sheet.
+        scroll.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 380f))
+        sheet.show()
+    }
+
+    private fun currencyRow(c: Currencies.Entry, sheet: IosSheet): View {
+        val selected = settings.currencyCode == c.code
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 8f), dp(ctx, 20f), dp(ctx, 8f))
+        }
+        row.addView(TextView(ctx).apply {
+            text = c.symbol
+            textSize = Ios.T_SUBHEAD
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(if (selected) p.tint else p.label)
+            gravity = android.view.Gravity.CENTER
+            background = Ios.rounded(7f,
+                if (selected) p.card2 else p.fill, ctx)
+        }, LinearLayout.LayoutParams(dp(ctx, 46f), dp(ctx, 30f)).apply {
+            rightMargin = dp(ctx, 12f)
+        })
+        row.addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(ctx).apply {
+                text = c.name; textSize = Ios.T_BODY; setTextColor(p.label)
+            })
+            addView(TextView(ctx).apply {
+                text = c.code; textSize = Ios.T_CAPTION; setTextColor(p.label3)
+            })
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        if (selected) {
+            row.addView(Icons.view(ctx, "checkmark", p.tint, 16f))
+        }
+        row.pressable()
+        row.setOnClickListener {
+            row.haptic()
+            settings.currencyCode = c.code
+            sheet.dismiss(); refresh()
+        }
+        return row
+    }
+
+    /** Escape hatch for symbols outside the registry. */
+    private fun pickCustomCurrency() {
+        val sheet = IosSheet(ctx, p)
+        val field = android.widget.EditText(ctx).apply {
+            hint = "e.g. ¥, R$, din"
+            setHintTextColor(p.label3)
+            setTextColor(p.label)
+            textSize = Ios.T_BODY
+            setText(settings.currencySymbol)
+            setSingleLine()
+            setPadding(dp(ctx, 16f), dp(ctx, 12f), dp(ctx, 16f), dp(ctx, 12f))
+            background = Ios.rounded(Ios.R_BUTTON, p.fill, ctx)
+        }
+        sheet.add(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 4f), dp(ctx, 20f), dp(ctx, 12f))
+            addView(TextView(ctx).apply {
+                text = "Custom currency"
+                textSize = Ios.T_HEADLINE
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(p.label)
+                setPadding(0, 0, 0, dp(ctx, 10f))
+            })
+            addView(field)
+        })
+        val save = iosButton(ctx, p, "Use this symbol")
+        sheet.add(LinearLayout(ctx).apply {
+            setPadding(dp(ctx, 16f), 0, dp(ctx, 16f), 0)
+            addView(save)
+        })
+        save.setOnClickListener {
+            val sym = field.text.toString().trim()
+            if (sym.isEmpty()) {
+                Toast.makeText(ctx, "Enter a symbol", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            settings.currencySymbol = sym
+            sheet.dismiss(); refresh()
+        }
+        sheet.show()
     }
 
     private fun showWatchedApps() {
