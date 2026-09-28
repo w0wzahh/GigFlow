@@ -147,6 +147,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        android.util.Log.d("GigFlowSvc", "event pkg=${event.packageName} type=${event.eventType}")
         val pkg = event.packageName?.toString() ?: return
         val now = System.currentTimeMillis()
 
@@ -166,7 +167,14 @@ class GigFlowAccessibilityService : AccessibilityService() {
         val curSymbol = settings.currencySymbol
         val extraRe = OfferParser.extraMoney(settings.currencyCode, curSymbol)
 
-        val root = appWindowRoot(pkg) ?: run { maybeOfferGone(now); return }
+        val root = appWindowRoot(pkg) ?: run {
+            // Window exists but its content isn't retrievable (or the window
+            // list hasn't caught up yet) — record it so Diagnostics shows
+            // "we saw the app but couldn't read it" rather than nothing.
+            Diagnostics.record(this, pkg, "idle", listOf("(window not readable)"))
+            maybeOfferGone(now)
+            return
+        }
 
         val nodes = OfferParser.flatten(root)
         val offer = OfferParser.parse(pkg, nodes, extraRe, curSymbol)

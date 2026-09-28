@@ -5,6 +5,9 @@
     <string name="service_description">Reads offer cards shown by rideshare and delivery apps and evaluates them against your GigFlow rules. Optionally taps accept or decline when automation is enabled. GigFlow only acts inside the driver apps you choose, never touches other apps, and performs no action unless you enable it.</string>
     <string name="service_summary">Scores incoming gig offers on-screen</string>
 
+    <!-- Shown in the Assist UI. The accessibility service filters by the
+         literal list in res/xml/accessibility_service_config.xml — keep the
+         two in sync when adding or removing apps. -->
     <string-array name="watched_packages">
         <item>com.uber.driver</item>
         <item>com.lyft.driver</item>

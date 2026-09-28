@@ -16,10 +16,11 @@ object OfferParser {
     // Money: symbol/code-prefixed ($12.50, €8.90) or code-suffixed (850 Ft,
     // 12,50 EUR). Drivers in Europe get Ft/kr/zł cards — $-only parsing
     // means nothing is ever detected. Deliberately case-sensitive: lowercase
-    // "ft" is feet, not forint. (?U) makes \b Unicode-aware so tokens ending
-    // in ł/č/₺ still match at end-of-string.
+    // "ft" is feet, not forint. The (?![\p{L}\p{N}]) tail instead of \b keeps
+    // tokens ending in ł/č/₺ matching — and stays inside what Android's
+    // ICU regex engine can compile (no (?U), no lookbehind).
     val MONEY = Regex(
-        "(?U)([$€£₺₴]|USD|EUR|GBP)\\s*(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)|" +
+        "([$€£₺₴]|USD|EUR|GBP)\\s*(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)|" +
             "(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)\\s*" +
             "(Ft|HUF|huf|EUR|eur|kr|Kr|KR|SEK|NOK|DKK|PLN|pln|zł|Zł|RON|ron|" +
             "lei|CZK|czk|Kč|TL|TRY|uah|UAH|₺|₴|USD|usd)(?![\\p{L}\\p{N}])",
@@ -82,7 +83,7 @@ object OfferParser {
         val num = "(\\d(?:[\\d., '\\u00A0]{0,12}\\d)?)"
         // Lookahead, not \b — \b can't anchor after non-word symbols (₺, ₩, R$)
         // so "100 ₺" would silently fail at end-of-string.
-        extraRe = Regex("(?U)(?:$alt)\\s*$num|$num\\s*(?:$alt)(?![\\p{L}\\p{N}])")
+        extraRe = Regex("(?:$alt)\\s*$num|$num\\s*(?:$alt)(?![\\p{L}\\p{N}])")
         extraKey = key
         return extraRe
     }

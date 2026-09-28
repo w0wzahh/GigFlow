@@ -33,9 +33,12 @@ object Diagnostics {
         val prev = all.optJSONObject(pkg)
         val joined = texts.take(MAX_TEXTS).joinToString("\n")
         // Skip repeat writes: idle is throttled, and an unchanged outcome
-        // with identical texts doesn't need re-persisting every frame.
+        // with identical texts doesn't need re-persisting every frame. An
+        // empty stored snapshot (app was still on its splash) never blocks
+        // real content, or the first 30s of every launch would look broken.
         if (prev != null &&
             System.currentTimeMillis() - prev.optLong("at") < IDLE_WRITE_MS &&
+            (prev.optString("texts").isNotEmpty() || joined.isEmpty()) &&
             (outcome == "idle" ||
                 (prev.optString("outcome") == outcome && prev.optString("texts") == joined))
         ) return
