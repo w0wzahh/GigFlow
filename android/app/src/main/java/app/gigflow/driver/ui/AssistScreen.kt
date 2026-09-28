@@ -221,7 +221,13 @@ class AssistScreen(
     private fun automationCard(): View {
         val card = Sections.card(ctx, p)
         val (r1, _) = Sections.switchRow(ctx, p, "Monitoring",
-            "Score offers as they appear", settings.enabled) { settings.enabled = it }
+            "Score offers as they appear", settings.enabled) {
+            settings.enabled = it
+            // Our own UI events never reach the service's event filter, so
+            // tear the overlay down explicitly instead of waiting for the
+            // next driver-app frame.
+            if (!it) GigFlowAccessibilityService.instance?.stopWatching()
+        }
         val (r2, _) = Sections.switchRow(ctx, p, "Auto-accept good offers",
             "Only when every rule passes", settings.autoAccept) { settings.autoAccept = it }
         val (r3, _) = Sections.switchRow(ctx, p, "Auto-decline bad offers",
@@ -260,6 +266,11 @@ class AssistScreen(
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         })
+        val (rRes, _) = Sections.switchRow(ctx, p, "Include reserved offers",
+            "Scheduled work can auto-accept too", settings.autoAcceptReservations) {
+            settings.autoAcceptReservations = it
+        }
+        card.addView(rRes)
         // Dry-run the whole pipeline: score → overlay → voice. No logging,
         // no taps — safe to use while parked.
         card.addView(Sections.separator(ctx, p))

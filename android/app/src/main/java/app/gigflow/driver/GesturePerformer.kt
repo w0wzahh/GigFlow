@@ -15,9 +15,16 @@ object GesturePerformer {
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
             .build()
-        service.dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
-            override fun onCompleted(g: GestureDescription?) = done(true)
-            override fun onCancelled(g: GestureDescription?) = done(false)
-        }, null)
+        // dispatchGesture returns false when it can't dispatch at all —
+        // neither callback fires then, so report failure ourselves.
+        val dispatched = service.dispatchGesture(
+            gesture,
+            object : AccessibilityService.GestureResultCallback() {
+                override fun onCompleted(g: GestureDescription?) = done(true)
+                override fun onCancelled(g: GestureDescription?) = done(false)
+            },
+            null,
+        )
+        if (!dispatched) done(false)
     }
 }

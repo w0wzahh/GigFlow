@@ -26,14 +26,18 @@ class OverlayController(private val service: AccessibilityService) {
     private val tickerHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var expiryTicker: Runnable? = null
 
-    /** Tick down the offer's own expiry timer shown on the card. */
-    private fun tickExpiry(startSec: Int) {
+    /**
+     * Tick down the offer's own expiry timer shown on the card. At 0 we
+     * route through [onExpire] (not a bare hide) so the service can cancel
+     * any pending auto-accept instead of tapping a card that just died.
+     */
+    private fun tickExpiry(startSec: Int, onExpire: () -> Unit) {
         expiryTicker?.let { tickerHandler.removeCallbacks(it) }
         var left = startSec
         val r = object : Runnable {
             override fun run() {
                 left--
-                if (left <= 0) { hide(); return }
+                if (left <= 0) { onExpire(); return }
                 expiry?.text = "Expires in ${left}s"
                 tickerHandler.postDelayed(this, 1000)
             }
@@ -42,13 +46,8 @@ class OverlayController(private val service: AccessibilityService) {
         tickerHandler.postDelayed(r, 1000)
     }
 
-    private val suffixCurrencies = setOf("Ft", "kr", "zł", "lei", "Kč", "₺", "₴")
-
     private fun money(cents: Int?, symbol: String = "$") =
-        cents?.let {
-            if (symbol in suffixCurrencies) "%,.0f %s".format(it / 100.0, symbol)
-            else "$symbol%.2f".format(it / 100.0)
-        } ?: "—"
+        app.gigflow.driver.ui.Ios.money(cents, symbol)
 
     /** Update the auto-accept countdown line, if shown. */
     fun setCountdown(secondsLeft: Int) {
@@ -146,7 +145,7 @@ class OverlayController(private val service: AccessibilityService) {
                 setPadding(0, 8.dp(), 0, 0)
             }
             container.addView(expiry)
-            tickExpiry(o.expiresInSec)
+            tickExpiry(o.expiresInSec) { onAction(Action.EXPIRED) }
         }
 
         // Mystro-style countdown strip: auto-accept fires when it hits 0,
@@ -195,7 +194,7 @@ class OverlayController(private val service: AccessibilityService) {
         expiry = null
     }
 
-    enum class Action { ACCEPT, DECLINE, CANCEL_AUTO }
+    enum class Action { ACCEPT, DECLINE, CANCEL_AUTO, EXPIRED }
 
     companion object {
         /** Check the service is actually enabled — used by MainActivity. */

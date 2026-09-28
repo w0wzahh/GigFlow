@@ -62,12 +62,14 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Synthetic test offer — exercises score → overlay → voice without
-     * logging or automation taps, so drivers can verify the pipeline before
-     * going online. Called from Assist → "Send a test offer".
+     * Synthetic test offer — exercises the whole pipeline: score → overlay →
+     * countdown → gesture dispatch → voice. The accept node points at a
+     * screen-margin dead zone so the auto-accept tap provably fires without
+     * touching anything real; nothing is logged (see recordAction).
      */
     fun testOffer() {
         handler.post {
+            val dead = NodeRef(android.graphics.Rect(8, 1150, 14, 1190), "test")
             val o = DetectedOffer(
                 appPackage = "app.gigflow.test",
                 payoutCents = (12.50 * 100).toInt(),
@@ -75,14 +77,22 @@ class GigFlowAccessibilityService : AccessibilityService() {
                 distanceKm = 4.2,
                 durationMin = 18.0,
                 extraDistanceKm = null,
-                acceptNode = null,
-                declineNode = null,
+                acceptNode = dead,
+                declineNode = dead,
                 rawTexts = listOf("Test offer"),
                 currencySymbol = settings.currencySymbol,
                 expiresInSec = 12,
             )
             val scored = RuleEngine.score(o, settings.rules())
-            overlay.show(scored) { overlay.hide() }
+            activeOffer = scored // so stopWatching()/onInterrupt clear it too
+            val delay = if (settings.autoAccept && scored.verdict == Verdict.GOOD)
+                settings.autoAcceptDelaySec else 0
+            overlay.show(scored, delay) { action ->
+                cancelAutoAccept()
+                if (action == OverlayController.Action.EXPIRED) offerGone()
+                overlay.hide()
+            }
+            if (delay > 0) scheduleAutoAccept(scored, dead, delay)
             if (settings.voiceAlerts) {
                 tts?.speak(
                     "Test offer, ${spokenAmount(o.payoutCents, o.currencySymbol)}",
@@ -91,6 +101,14 @@ class GigFlowAccessibilityService : AccessibilityService() {
             }
         }
     }
+
+    /**
+     * UI-initiated teardown. Our own package's events never reach
+     * onAccessibilityEvent (manifest filter), so turning monitoring off
+     * inside the app wouldn't clear the overlay/pending taps — the
+     * Monitoring toggle calls this directly.
+     */
+    fun stopWatching() = handler.post { offerGone() }
 
     /**
      * Offer cards often live in a popup/dialog window that isn't the
@@ -138,7 +156,8 @@ class GigFlowAccessibilityService : AccessibilityService() {
         onDriverAppSeen(now)
 
         val prefs = settings.rulesFor(pkg) // per-app overrides over globals
-        if (!prefs.enabled) return
+        // Monitoring switched off while an overlay was up — tear it down.
+        if (!prefs.enabled) { offerGone(); return }
         if (now - lastScanAt < 350) return // throttle contentChanged storms
         lastScanAt = now
 
@@ -224,6 +243,9 @@ class GigFlowAccessibilityService : AccessibilityService() {
                     GesturePerformer.tap(this, it.bounds)
                     recordAction(scored, "manual_decline")
                 }
+                // Offer's on-card timer hit zero — same teardown as the
+                // card vanishing; never leave a pending tap behind.
+                OverlayController.Action.EXPIRED -> offerGone()
                 OverlayController.Action.CANCEL_AUTO -> Unit
             }
             overlay.hide()
@@ -256,6 +278,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
 
     /** Tick the overlay countdown down, then tap accept at 0. */
     private fun scheduleAutoAccept(scored: ScoredOffer, node: NodeRef, delaySec: Int) {
+        cancelAutoAccept() // a new offer can arrive before the last countdown ended
         var left = delaySec
         val ticker = object : Runnable {
             override fun run() {
@@ -348,6 +371,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
 
     private fun recordAction(s: ScoredOffer, action: String) {
         val o = s.offer
+        if (o.appPackage == "app.gigflow.test") return // test offer — don't log
         OfferLog.add(this, OfferLog.Entry(
             at = o.seenAt, pkg = o.appPackage, payoutCents = o.payoutCents,
             distanceKm = o.distanceKm, durationMin = o.durationMin,
@@ -376,11 +400,9 @@ class GigFlowAccessibilityService : AccessibilityService() {
         hideRunnable?.let { handler.removeCallbacks(it) }
         hideToken = ""
         cancelAutoAccept() // never tap bounds for a card that's no longer up
-        if (activeOffer != null) {
-            activeOffer = null
-            lastFingerprint = ""
-            overlay.hide()
-        }
+        activeOffer = null
+        lastFingerprint = ""
+        overlay.hide()
     }
 
     override fun onInterrupt() {
