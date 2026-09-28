@@ -57,7 +57,9 @@ Five tabs behind a floating frosted tab bar:
   detection — scheduled work is badged and auto-accept is separately gated.
 - Optionally taps Accept/Decline via `dispatchGesture` — opt-in switches.
 - **Diagnostics** (Assistant tab): per-app "last seen" status plus the
-  exact texts the service read, so a parse miss is debuggable in seconds.
+  exact texts the service read — with `[tap]` and `(view-id)` markers per
+  node — so a parse miss is debuggable in seconds, and shareable via a
+  "Share this report" button (plain text, no account needed).
 - **Send a test offer** (Assistant → Automation): dry-runs score → overlay
   → voice without logging anything, so you can verify setup while parked.
 

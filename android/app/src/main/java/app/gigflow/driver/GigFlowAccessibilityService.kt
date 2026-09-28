@@ -178,12 +178,12 @@ class GigFlowAccessibilityService : AccessibilityService() {
                 OfferParser.moneyOf(it.text, extraRe, curSymbol) != null
             }
             Diagnostics.record(this, pkg, if (hasMoney) "miss" else "idle",
-                nodes.map { it.text })
+                nodes.map { it.diag() })
             maybeLogCompletion(pkg, nodes, now, extraRe, curSymbol)
             maybeOfferGone(now)
             return
         }
-        Diagnostics.record(this, pkg, "offer", offer.rawTexts)
+        Diagnostics.record(this, pkg, "offer", nodes.map { it.diag() })
 
         // Same card still on screen — don't rescore/re-overlay every frame.
         if (offer.fingerprint == lastFingerprint && now - lastSeenAt < 60_000) {
@@ -395,6 +395,15 @@ class GigFlowAccessibilityService : AccessibilityService() {
             reservation = o.isReservation,
             currency = o.currencySymbol,
         ))
+    }
+
+    /** "· [tap] (btn_accept) Elfogadás" — clickability and the view id are
+     *  what a parse-miss report needs: whether the app exposes real buttons
+     *  vs a tap-anywhere card, and which control we should have hit. */
+    private fun OfferParser.FlatNode.diag() = buildString {
+        if (clickable) append("[tap] ")
+        viewId?.substringAfterLast('/')?.let { append("($it) ") }
+        append(text)
     }
 
     /** Watched-package → platform key used to tag captured earnings. */

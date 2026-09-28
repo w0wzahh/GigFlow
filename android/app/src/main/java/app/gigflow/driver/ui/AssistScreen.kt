@@ -203,7 +203,7 @@ class AssistScreen(
         })
         col.addView(TextView(ctx).apply {
             text = if (snap.outcome == "miss")
-                "This screen had a price on it but wasn't read as an offer — the app's layout probably changed. Screenshot this list and share it."
+                "This screen had a price on it but wasn't read as an offer — the app's layout probably changed. Tap 'Share this report' and send it over."
             else "Everything the assistant read on the last screen."
             textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
             setPadding(0, 0, 0, dp(ctx, 10f))
@@ -215,6 +215,29 @@ class AssistScreen(
                 setPadding(0, dp(ctx, 2f), 0, dp(ctx, 2f))
             })
         }
+        // Share the raw node dump — [tap]/view-id markers included — so a
+        // parse miss can be reported as text, not just a screenshot.
+        col.addView(TextView(ctx).apply {
+            text = "Share this report"
+            textSize = Ios.T_BODY; setTypeface(typeface, Typeface.BOLD)
+            setTextColor(p.tint); gravity = android.view.Gravity.CENTER
+            setPadding(0, dp(ctx, 14f), 0, dp(ctx, 6f))
+            setOnClickListener {
+                val body = buildString {
+                    append("$name · outcome=${snap.outcome}\n")
+                    append("pkg=${
+                        watchedApps.firstOrNull { it.first == name }?.second ?: "?"
+                    }\n")
+                    append("app=${ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName}\n\n")
+                    snap.texts.forEach { append("· $it\n") }
+                }
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, body)
+                }
+                ctx.startActivity(Intent.createChooser(send, "Share diagnostics"))
+            }
+        })
         sheet.add(col).show()
     }
 
