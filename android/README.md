@@ -26,11 +26,22 @@ Five tabs behind a floating frosted tab bar:
 ## The assistant (Mystro-style, honest version)
 
 - Watches the offer screens of the driver apps you choose (Uber Driver,
-  Lyft Driver, Dasher, Instacart Shopper, Amazon Flex, Spark) via
-  `AccessibilityService` — scoped by package name, blind to everything else.
+  Lyft Driver, Dasher, Instacart Shopper, Amazon Flex, Spark Driver, Wolt
+  Courier Partner, foodora rider) via `AccessibilityService` — scoped by
+  package name, blind to everything else.
 - Reads the offer card off the screen (payout, distance, duration,
   accept/decline buttons, the offer's own countdown when shown) with
   text-pattern parsing — layout-independent.
+- **Localized UI aware**: Wolt and foodora ship in 30+ languages, so
+  accept/decline, duration ("25 perc"), tip, and reservation wording are
+  matched in English plus Hungarian, German, Polish, French, Spanish,
+  Italian, Swedish, Norwegian, Danish, Finnish, Czech/Slovak, Romanian,
+  Turkish, Ukrainian, and the Baltic languages.
+- **Per-app affordances**: Uber and Lyft accept on a tap *anywhere* on the
+  request card (no labelled button) — the parser resolves the card itself.
+  Amazon Flex instant offers use a *swipe* to accept, which the gesture
+  layer performs; reserved blocks claim via the Schedule button, only when
+  "Include reserved offers" is on.
 - **Multi-currency**: `Assistant → Offer rules → Currency` offers ~80
   currencies (`$ € £ Ft zł kr ₺ ₹ ₩ د.إ R$ …`) plus a custom-symbol escape
   hatch. The parser matches the built-in symbol set *and* whatever currency

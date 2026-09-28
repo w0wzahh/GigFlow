@@ -440,7 +440,7 @@ class AssistScreen(
         "Dasher" to "com.doordash.driverapp",
         "Instacart Shopper" to "com.instacart.shopper",
         "Amazon Flex" to "com.amazon.rabbit",
-        "Spark Driver" to "com.walmart.driver.spark",
+        "Spark Driver" to "com.walmart.sparkdriver",
         "Wolt Courier Partner" to "com.wolt.courierapp",
         "foodora rider" to "com.logistics.rider.foodora",
     )

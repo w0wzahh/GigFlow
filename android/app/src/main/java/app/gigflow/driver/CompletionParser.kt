@@ -13,19 +13,33 @@ package app.gigflow.driver
  */
 object CompletionParser {
 
-    private val TIP_WORD = Regex("""tip|gratuit|borravaló""", RegexOption.IGNORE_CASE)
+    private val TIP_WORD = Regex(
+        """tip|gratuit|borraval|trinkgeld|napiw|pourboire|propina|mancia|dricks|drikkepenge|juomarah|spropitn|bahş|чаєв""",
+        RegexOption.IGNORE_CASE,
+    )
 
-    // Phrases that only appear on post-trip / earnings-summary screens.
+    // Phrases that only appear on post-trip / earnings-summary screens —
+    // English first, then the locales Wolt/foodora ship in.
     private val COMPLETED = Regex(
         """you earned|you made|trip (fare|complete|ended|summary)|delivery complete|""" +
             """order (complete|delivered)|completed delivery|earnings? (today|summary)|""" +
-            """total (earnings|payout)|payout""",
+            """total (earnings|payout)|payout|""" +
+            """kiszállítva|teljesítve|keresett|jövedelem|verdient|abgeschlossen|""" +
+            """zarobiłeś|zakończon|ukończon|vous avez gagné|livraison terminée|""" +
+            """has ganado|entrega completada|leverans slutförd|du tjänade|""" +
+            """levering fullført|du tjente|fuldført|toimitus valmis|ansaitsit|""" +
+            """dokončen|vyděl|livrare finalizată|ai câștigat|teslimat tamamlandı|kazandın|""" +
+            """завершено|заробили|consegna completata|hai guadagnato""",
         RegexOption.IGNORE_CASE,
     )
 
     // Words that mark a *pending* screen (offer still deciding) — never treat
-    // those as completed work.
-    private val PENDING = Regex("""accept|decline|incoming|new (order|delivery|ride)""", RegexOption.IGNORE_CASE)
+    // those as completed work. Localized stems mirror OfferParser's set.
+    private val PENDING = Regex(
+        """accept|decline|incoming|new (order|delivery|ride)|elfogad|elutasít|akzept|akcept|""" +
+            """prija|přijm|przyjm|hyväks|avvis|godta|annehm|ablehn|refus|reddet""",
+        RegexOption.IGNORE_CASE,
+    )
 
     data class Completion(
         val payoutCents: Int,

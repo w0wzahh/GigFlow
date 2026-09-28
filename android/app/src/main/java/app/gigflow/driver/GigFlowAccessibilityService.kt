@@ -236,7 +236,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             cancelAutoAccept()
             when (action) {
                 OverlayController.Action.ACCEPT -> offer.acceptNode?.let {
-                    GesturePerformer.tap(this, it.bounds)
+                    acceptGesture(it, offer.appPackage)
                     recordAction(scored, "manual_accept")
                 }
                 OverlayController.Action.DECLINE -> offer.declineNode?.let {
@@ -276,6 +276,20 @@ class GigFlowAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * The accept affordance differs per app: most are a tap on the labelled
+     * control, but Amazon Flex uses a "swipe to accept" slider where a tap
+     * does nothing. Uber/Lyft need no special gesture — the parser resolves
+     * the tappable request card itself for those (tap-anywhere accept).
+     */
+    private fun acceptGesture(node: NodeRef, pkg: String, done: (Boolean) -> Unit = {}) {
+        if (pkg == "com.amazon.rabbit" || node.label.contains("swipe", ignoreCase = true)) {
+            GesturePerformer.swipeRight(this, node.bounds, done)
+        } else {
+            GesturePerformer.tap(this, node.bounds, done)
+        }
+    }
+
     /** Tick the overlay countdown down, then tap accept at 0. */
     private fun scheduleAutoAccept(scored: ScoredOffer, node: NodeRef, delaySec: Int) {
         cancelAutoAccept() // a new offer can arrive before the last countdown ended
@@ -284,7 +298,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             override fun run() {
                 left--
                 if (left <= 0) {
-                    GesturePerformer.tap(this@GigFlowAccessibilityService, node.bounds) { ok ->
+                    acceptGesture(node, scored.offer.appPackage) { ok ->
                         if (ok) recordAction(scored, "auto_accept")
                     }
                     overlay.hide()

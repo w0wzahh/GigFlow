@@ -27,4 +27,25 @@ object GesturePerformer {
         )
         if (!dispatched) done(false)
     }
+
+    /** Left→right swipe across [bounds] — Amazon Flex uses a "swipe to
+     *  accept" slider where a plain tap does nothing. */
+    fun swipeRight(service: AccessibilityService, bounds: Rect, done: (Boolean) -> Unit = {}) {
+        val path = Path().apply {
+            moveTo(bounds.left + bounds.width() * 0.15f, bounds.exactCenterY())
+            lineTo(bounds.right - bounds.width() * 0.10f, bounds.exactCenterY())
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
+            .build()
+        val dispatched = service.dispatchGesture(
+            gesture,
+            object : AccessibilityService.GestureResultCallback() {
+                override fun onCompleted(g: GestureDescription?) = done(true)
+                override fun onCancelled(g: GestureDescription?) = done(false)
+            },
+            null,
+        )
+        if (!dispatched) done(false)
+    }
 }

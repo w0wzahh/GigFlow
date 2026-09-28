@@ -11,7 +11,7 @@
         <item>com.doordash.driverapp</item>
         <item>com.instacart.shopper</item>
         <item>com.amazon.rabbit</item>
-        <item>com.walmart.driver.spark</item>
+        <item>com.walmart.sparkdriver</item>
         <item>com.wolt.courierapp</item>
         <item>com.logistics.rider.foodora</item>
     </string-array>

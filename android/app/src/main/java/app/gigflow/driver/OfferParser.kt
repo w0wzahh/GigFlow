@@ -104,19 +104,56 @@ object OfferParser {
     }
     private val MILES = Regex("""(\d{1,3}(?:\.\d+)?)\s*(mi|miles?|mile)\b""", RegexOption.IGNORE_CASE)
     private val KM = Regex("""(\d{1,3}(?:\.\d+)?)\s*km\b""", RegexOption.IGNORE_CASE)
-    private val MINUTES = Regex("""(\d{1,3})\s*min""", RegexOption.IGNORE_CASE)
-    private val HOURS_MIN = Regex("""(\d+)\s*hr?\s*(\d+)?\s*min""", RegexOption.IGNORE_CASE)
-    private val TIP_WORD = Regex("""tip|gratuit""", RegexOption.IGNORE_CASE)
-
-    private val ACCEPT_WORDS = Regex("""accept|confirm|match me|claim|grab it|start delivery""", RegexOption.IGNORE_CASE)
-    private val DECLINE_WORDS = Regex("""decline|pass|reject|no thanks|skip""", RegexOption.IGNORE_CASE)
-    private val TIMER_HINTS = Regex("""^\d{1,2}$|seconds""") // countdown numbers — ignore for duration
-    // Offer expiry countdown: "0:12", "12s", "12 sec", "expires in 12".
-    private val EXPIRY = Regex(
-        """^(\d{1,2}):(\d{2})$|^(\d{1,2})\s*(s|sec|seconds?)\b|expires? in (\d{1,2})""",
+    // "min" covers most EU languages; Hungarian offers show "perc" instead.
+    private val MINUTES = Regex(
+        """(\d{1,3})\s*(minutes|minuten|minutter|minuter|minute|mins?|perc|percet|minut)\b""",
         RegexOption.IGNORE_CASE,
     )
-    private val RESERVATION = Regex("""reserv|scheduled""", RegexOption.IGNORE_CASE)
+    // "1 hr 20 min", "2 h", "1 óra 30 perc", "2 godz.", "3 timer"…
+    private val HOURS_MIN = Regex(
+        """(\d{1,2})\s*(h|hr|hrs|hour|hours|óra|godz|hod|tuntia|tim|timer)\b\.?\s*(\d{1,2})?\s*(min|perc|minut)?""",
+        RegexOption.IGNORE_CASE,
+    )
+    // "tip" spans most markets; add the ones that differ (HU/DE/PL/FR/ES/IT/…).
+    private val TIP_WORD = Regex(
+        """tip|gratuit|borraval|trinkgeld|napiw|pourboire|propina|mancia|dricks|drikkepenge|juomarah|spropitn|bahş|чаєв""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    // Accept wording across the markets Wolt/foodora actually localize to.
+    // Word stems keep the table compact (Hungarian "Elfogadás/Elfogadom",
+    // Polish "Akceptuj/Przyjmij"…). "swipe" catches Flex's slider label.
+    private val ACCEPT_WORDS = Regex(
+        """accept|confirm|match me|claim|grab it|start delivery|swipe|""" +
+            """accepter|aceptar|aceitar|acceptă|akzept|aksep|annehm|akcept|przyjm|přijm|prija|""" +
+            """elfogad|átvett|átvesz|hyväks|godkänn|godkjenn|godta|kabul|zaprim|prejmi|""" +
+            """прийма|прийнят|приеми|acceptez|pastāst|patvirt""",
+        RegexOption.IGNORE_CASE,
+    )
+    // "Schedule"/"Book" = claiming a *reserved* block (Amazon Flex) — only
+    // applied on screens we already flagged as reservations, so the Schedule
+    // nav tab can't be mistaken for an accept affordance.
+    private val RESERVE_ACCEPT = Regex("""schedule|book|reserve|foglal|boka""", RegexOption.IGNORE_CASE)
+    private val DECLINE_WORDS = Regex(
+        """decline|\bpass\b|reject|no thanks|skip|close|refus|rechaz|recus|ablehn|avvis|afvis|""" +
+            """odmítn|odmiet|odrzu|hylk|elutasít|visszautasít|reddet|atmest|noraid|""" +
+            """відхил|отказ|norite|refuza""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val TIMER_HINTS = Regex("""^\d{1,2}$|seconds|másodperc|sekund""", RegexOption.IGNORE_CASE)
+    // Offer expiry countdown: "0:12", "12s", "12 sec", "expires in 12".
+    private val EXPIRY = Regex(
+        """^(\d{1,2}):(\d{2})$|^(\d{1,2})\s*(s|sec|seconds?|mp)\b|expires? in (\d{1,2})""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val RESERVATION = Regex(
+        """reserv|scheduled|foglal|ütemez|rezerv|planowan|zaplanowan|bokad|planlagt|varattu|забронь|зарезерв""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Apps where the whole request card accepts on tap — no labelled button.
+     *  Uber docs: "tap anywhere on the black bar"; Lyft: "tap anywhere". */
+    private val TAP_ANYWHERE_PKGS = setOf("com.uber.driver", "com.lyft.driver")
 
     data class FlatNode(
         val text: String,
@@ -165,7 +202,8 @@ object OfferParser {
         val payout = moneyNodes
             .filter { it.amount > 0.5 && !TIP_WORD.containsMatchIn(it.raw) }
             .maxOfOrNull { it.amount } ?: return null
-        val currency = moneyNodes.firstOrNull { it.amount == payout }?.currency ?: "$"
+        val payoutMoney = moneyNodes.firstOrNull { it.amount == payout }
+        val currency = payoutMoney?.currency ?: "$"
 
         val tip = moneyNodes
             .filter { TIP_WORD.containsMatchIn(it.raw) }
@@ -194,7 +232,7 @@ object OfferParser {
                 if (mm != null) mm * 60 + (m.groupValues[2].toIntOrNull() ?: 0)
                 else (m.groupValues[3].ifEmpty { m.groupValues[5] }).toIntOrNull()
             }
-        }.filter { it in 1..120 }.minOrNull()
+        }.filter { it in 1..300 }.minOrNull() // Instacart batch timers run ~4min
 
         // Need at least payout + one of distance/duration to call it an offer.
         if (distanceKm == null && durationMin == null) return null
@@ -204,8 +242,28 @@ object OfferParser {
                 re.containsMatchIn(n.text) && (!clickableOnly || n.clickable) && n.bounds.width() > 0
             }?.let { NodeRef(it.bounds, it.text) }
 
+        // Uber/Lyft accept the request when *anywhere* on the card is tapped —
+        // there is no labelled Accept control, so the affordance is the card
+        // itself: the smallest clickable node containing the payout text.
+        fun tapAnywhereAccept(payoutNode: FlatNode?): NodeRef? {
+            if (pkg !in TAP_ANYWHERE_PKGS) return null
+            val m = payoutNode ?: return null
+            val cx = m.bounds.centerX(); val cy = m.bounds.centerY()
+            return nodes
+                .filter { it.clickable && it.bounds.contains(cx, cy) }
+                .minByOrNull { it.bounds.width() * it.bounds.height() }
+                ?.let { NodeRef(it.bounds, it.text) }
+        }
+
+        val isReservation = texts.any { RESERVATION.containsMatchIn(it) }
+
         val accept = nodeMatching(ACCEPT_WORDS, clickableOnly = true)
             ?: nodeMatching(ACCEPT_WORDS, clickableOnly = false)
+            ?: if (isReservation && pkg == "com.amazon.rabbit") {
+                nodeMatching(RESERVE_ACCEPT, clickableOnly = true)
+                    ?: nodeMatching(RESERVE_ACCEPT, clickableOnly = false)
+            } else null
+            ?: tapAnywhereAccept(payoutMoney?.node)
         val decline = nodeMatching(DECLINE_WORDS, clickableOnly = true)
             ?: nodeMatching(DECLINE_WORDS, clickableOnly = false)
 
@@ -221,7 +279,7 @@ object OfferParser {
             rawTexts = texts,
             currencySymbol = currency,
             expiresInSec = expiresInSec,
-            isReservation = texts.any { RESERVATION.containsMatchIn(it) },
+            isReservation = isReservation,
         )
     }
 }
