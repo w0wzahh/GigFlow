@@ -10,13 +10,12 @@ import android.widget.TextView
 import app.gigflow.driver.*
 import app.gigflow.driver.ui.Ios.Palette
 import app.gigflow.driver.ui.Ios.dp
-import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * Dashboard — today at a glance plus the full analytics section:
- * period toggle, rates, platform breakdown, daily chart, goals, insights.
+ * period toggle, rates, platform breakdown, daily chart, recent activity.
  */
 class DashboardScreen(
     private val activity: android.app.Activity,
@@ -26,18 +25,16 @@ class DashboardScreen(
 ) {
     val screen = Screen(activity, p, "Dashboard")
     private val ctx: Context = activity
-    private var summary: JSONObject? = null
     private var period = 0 // 0 week, 1 month
 
-    private var lastSummaryFetch = 0L
-
-    fun refresh(animate: Boolean = true, fetch: Boolean = true) {
+    fun refresh(animate: Boolean = true) {
         screen.column.removeAllViews()
         val c = screen.column
 
         c.addView(greeting())
         if (!OverlayController.isServiceEnabled(ctx)) c.addView(serviceBanner())
         c.addView(heroCard())
+        c.addView(gap(10f))
         c.addView(shareRow())
         c.addView(Sections.header(ctx, p, "Analytics"))
         c.addView(LinearLayout(ctx).apply {
@@ -59,21 +56,10 @@ class DashboardScreen(
         c.addView(chartCard())
         c.addView(Sections.header(ctx, p, "Assistant"))
         c.addView(assistantCard())
-        goalsCard()?.let { c.addView(Sections.header(ctx, p, "Goals")); c.addView(it) }
-        insightsCard()?.let { c.addView(Sections.header(ctx, p, "Insights")); c.addView(it) }
         c.addView(Sections.header(ctx, p, "Recent activity"))
         c.addView(todayRecordsCard())
         c.addView(gap(24f))
 
-        val now = System.currentTimeMillis()
-        if (fetch && now - lastSummaryFetch > 30_000 &&
-            GigFlowApi.configured(settings.syncBaseUrl, settings.syncToken)) {
-            lastSummaryFetch = now
-            GigFlowApi.fetchSummary(settings.syncBaseUrl, settings.syncToken) { s ->
-                summary = s
-                if (s != null) screen.post { refresh(animate = false, fetch = false) }
-            }
-        }
         if (animate) screen.animateIn()
     }
 
@@ -152,7 +138,6 @@ class DashboardScreen(
     private fun money(cents: Int?, symbol: String = settings.currencySymbol) =
         Ios.money(cents, symbol)
 
-    private fun todayFromWeb() = summary?.optJSONObject("today")
     private fun isKm() = settings.distanceUnit == "KM"
     private fun dist(km: Double) = if (isKm()) "%.1f km".format(km)
         else "%.1f mi".format(km * 0.621371)
@@ -162,18 +147,16 @@ class DashboardScreen(
 
     private fun heroCard(): View {
         val card = Sections.card(ctx, p)
-        val web = todayFromWeb()
         val dayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.timeInMillis
         val local = db.totals(dayStart)
 
-        val gross = web?.optInt("grossCents", -1)?.takeIf { it >= 0 } ?: local.earnedCents
-        val net = web?.optInt("netCents", Int.MIN_VALUE)?.takeIf { it != Int.MIN_VALUE }
-            ?: (local.earnedCents - local.spentCents)
-        val hours = web?.optDouble("hours", Double.NaN)?.takeIf { !it.isNaN() }
-        val offers = web?.optInt("offers", -1)?.takeIf { it >= 0 }
+        val gross = local.earnedCents
+        val net = local.earnedCents - local.spentCents
+        val hours = db.stats(dayStart).hours.takeIf { it > 0 }
+        val offers = OfferLog.all(ctx).count { it.at >= dayStart }
 
         val pad = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -202,9 +185,9 @@ class DashboardScreen(
             orientation = LinearLayout.HORIZONTAL
             addView(miniStat("Gross", money(gross)))
             addView(miniStat("Hours", hours?.let { "%.1f".format(it) } ?: "—"))
-            addView(miniStat("${settings.currencySymbol}/hr", web?.optInt("perHourCents", -1)?.takeIf { it >= 0 }
-                ?.let { money(it) } ?: "—"))
-            addView(miniStat("Offers", offers?.toString() ?: OfferLog.all(ctx).size.toString()))
+            addView(miniStat("${settings.currencySymbol}/hr",
+                if (hours != null && hours > 0) money((gross / hours).toInt()) else "—"))
+            addView(miniStat("Offers", offers.toString()))
         })
         card.addView(pad)
         return card
@@ -238,18 +221,33 @@ class DashboardScreen(
         return db.stats(cal.timeInMillis)
     }
 
-    /** Effective aggregate — web summary if synced, else local records. */
+    /** Effective aggregate — always computed from on-device records. */
     private fun agg(): Agg {
-        val key = if (period == 0) "week" else "month"
-        val w = summary?.optJSONObject(key)
-        if (w != null) return Agg(
-            gross = w.optInt("grossCents"), net = w.optInt("netCents"),
-            spent = w.optInt("expensesCents"), hours = w.optDouble("hours"),
-            km = w.optDouble("distanceKm"), jobs = -1, tips = 0,
-        )
         val s = local()
         return Agg(s.earnedCents, s.earnedCents - s.spentCents, s.spentCents,
             s.hours, s.km, s.jobs, s.tipCents)
+    }
+
+    /** Net for the week before this one — powers the WoW delta chip. */
+    private fun prevWeekNet(): Int {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+            if (timeInMillis > System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, -7)
+        }
+        val weekStart = cal.timeInMillis
+        val prevStart = weekStart - 7L * 24 * 3600 * 1000
+        var net = 0
+        db.all(500).forEach { r ->
+            if (r.createdAt in prevStart until weekStart) {
+                when (r.type) {
+                    "earning" -> net += r.payload.optInt("amountCents")
+                    "expense" -> net -= r.payload.optInt("amountCents")
+                }
+            }
+        }
+        return net
     }
 
     private data class Agg(
@@ -278,8 +276,8 @@ class DashboardScreen(
             })
             // week-over-week delta chip
             if (period == 0) {
-                val prev = summary?.optJSONObject("prevWeek")?.optInt("netCents")
-                if (prev != null && prev > 0) {
+                val prev = prevWeekNet()
+                if (prev > 0) {
                     val delta = ((a.net - prev) * 100f / prev).toInt()
                     addView(TextView(ctx).apply {
                         text = (if (delta >= 0) "↑ " else "↓ ") + kotlin.math.abs(delta) + "%"
@@ -340,13 +338,26 @@ class DashboardScreen(
         return card
     }
 
+    /** Per-platform gross — from locally logged/auto-captured earnings. */
     private fun platformCard(): View? {
-        val arr = summary?.optJSONArray("byPlatform") ?: return null
-        if (arr.length() == 0) return null
+        data class Pl(val key: String, var gross: Int, var jobs: Int)
+        val byKey = linkedMapOf<String, Pl>()
+        db.all(500).forEach { r ->
+            if (r.type != "earning") return@forEach
+            val key = r.payload.optString("platformKey").ifBlank { "other" }
+            val pl = byKey.getOrPut(key) { Pl(key, 0, 0) }
+            pl.gross += r.payload.optInt("amountCents"); pl.jobs++
+        }
+        if (byKey.isEmpty()) return null
+        val names = mapOf(
+            "uber" to "Uber", "lyft" to "Lyft", "doordash" to "DoorDash",
+            "instacart" to "Instacart", "amazon-flex" to "Amazon Flex",
+            "spark" to "Spark", "wolt" to "Wolt", "foodora" to "foodora",
+            "other" to "Other",
+        )
         val card = Sections.card(ctx, p)
-        val max = (0 until arr.length()).maxOf { arr.getJSONObject(it).optInt("grossCents") }.coerceAtLeast(1)
-        for (i in 0 until arr.length()) {
-            val pl = arr.getJSONObject(i)
+        val max = byKey.values.maxOf { it.gross }.coerceAtLeast(1)
+        byKey.values.sortedByDescending { it.gross }.forEachIndexed { i, pl ->
             if (i > 0) card.addView(Sections.separator(ctx, p))
             card.addView(LinearLayout(ctx).apply {
                 orientation = LinearLayout.VERTICAL
@@ -354,19 +365,17 @@ class DashboardScreen(
                 addView(LinearLayout(ctx).apply {
                     orientation = LinearLayout.HORIZONTAL
                     addView(TextView(ctx).apply {
-                        text = pl.optString("name")
+                        text = names[pl.key] ?: pl.key.replaceFirstChar { it.uppercase() }
                         textSize = Ios.T_BODY; setTextColor(p.label)
                         layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                     })
                     addView(TextView(ctx).apply {
-                        val jobs = pl.optInt("jobs", 0)
-                        text = money(pl.optInt("grossCents")) +
-                            if (jobs > 0) " · $jobs job${if (jobs == 1) "" else "s"}" else ""
+                        text = money(pl.gross) +
+                            " · ${pl.jobs} job${if (pl.jobs == 1) "" else "s"}"
                         textSize = Ios.T_SUBHEAD; setTextColor(p.label2)
                     })
                 })
-                addView(ProgressBar(ctx, p,
-                    (pl.optInt("grossCents") * 100 / max)).apply {
+                addView(ProgressBar(ctx, p, pl.gross * 100 / max).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 5f),
                     ).apply { topMargin = dp(ctx, 7f) }
@@ -378,15 +387,8 @@ class DashboardScreen(
 
     private fun chartCard(): View {
         val card = Sections.card(ctx, p)
-        val days = summary?.optJSONArray("series")
         val vals = FloatArray(7)
-        if (days != null && days.length() > 0) {
-            val n = minOf(days.length(), 7)
-            for (i in 0 until n) vals[i + (7 - n)] =
-                days.getJSONObject(days.length() - n + i).optInt("grossCents").toFloat()
-        } else {
-            db.dailyGross(7).copyInto(vals)
-        }
+        db.dailyGross(7).copyInto(vals)
         val labels = arrayOf("S", "M", "T", "W", "T", "F", "S")
         val dow = Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun
         val ordered = Array(7) { labels[(dow - 6 + it + 7) % 7] }
@@ -424,54 +426,6 @@ class DashboardScreen(
         return card
     }
 
-    /** Goal progress rows — mirrors the web goals panel. */
-    private fun goalsCard(): View? {
-        val goals = summary?.optJSONArray("goals") ?: return null
-        if (goals.length() == 0) return null
-        val card = Sections.card(ctx, p)
-        for (i in 0 until goals.length()) {
-            val g = goals.getJSONObject(i)
-            if (i > 0) card.addView(Sections.separator(ctx, p))
-            card.addView(LinearLayout(ctx).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(ctx, 16f), dp(ctx, 12f), dp(ctx, 16f), dp(ctx, 12f))
-                addView(LinearLayout(ctx).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    addView(TextView(ctx).apply {
-                        text = g.optString("name")
-                        textSize = Ios.T_SUBHEAD; setTextColor(p.label)
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    })
-                    addView(TextView(ctx).apply {
-                        text = "${money(g.optInt("progressCents"))} / ${money(g.optInt("targetCents"))}"
-                        textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
-                    })
-                })
-                addView(ProgressBar(ctx, p, g.optInt("progressPct")).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 6f),
-                    ).apply { topMargin = dp(ctx, 8f) }
-                })
-            })
-        }
-        return card
-    }
-
-    /** Insight strings computed on the server — shown when synced. */
-    private fun insightsCard(): View? {
-        val arr = summary?.optJSONArray("insights") ?: return null
-        if (arr.length() == 0) return null
-        val card = Sections.card(ctx, p)
-        for (i in 0 until arr.length()) {
-            if (i > 0) card.addView(Sections.separator(ctx, p))
-            card.addView(Sections.row(ctx, p,
-                title = arr.getString(i),
-                iconGlyph = "bolt", iconTint = p.orange,
-            ))
-        }
-        return card
-    }
-
     private fun todayRecordsCard(): View {
         val card = Sections.card(ctx, p)
         val recent = db.all(5)
@@ -498,8 +452,7 @@ class DashboardScreen(
         }
         return Sections.row(ctx, p,
             title = label,
-            subtitle = SimpleDateFormat("h:mm a", Locale.US).format(Date(r.createdAt)) +
-                if (!r.synced) " · pending sync" else "",
+            subtitle = SimpleDateFormat("h:mm a", Locale.US).format(Date(r.createdAt)),
             value = amount,
             iconGlyph = glyph, iconTint = tint,
         )

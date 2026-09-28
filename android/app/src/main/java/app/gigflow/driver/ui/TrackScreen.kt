@@ -17,8 +17,7 @@ import java.util.*
 
 /**
  * Track — quick-add earnings / expenses / mileage in iOS grouped-form style.
- * Tap a record → action sheet with Edit / Delete. Saves locally first
- * (works offline), then pushes to the web workspace.
+ * Tap a record → action sheet with Edit / Delete. Everything is local.
  */
 class TrackScreen(
     ctx: Context,
@@ -102,7 +101,6 @@ class TrackScreen(
             setPadding(dp(ctx, 20f), dp(ctx, 6f), 0, 0)
         })
 
-        val unsynced = db.unsyncedCount()
         c.addView(Sections.header(ctx, p, "Recent"))
         val recentCard = Sections.card(ctx, p)
         val rows = db.all(8)
@@ -119,15 +117,6 @@ class TrackScreen(
             }
         }
         c.addView(recentCard)
-
-        if (unsynced > 0) {
-            c.addView(TextView(ctx).apply {
-                text = "$unsynced record${if (unsynced == 1) "" else "s"} will sync when you're online."
-                textSize = Ios.T_FOOTNOTE
-                setTextColor(p.label2)
-                setPadding(dp(ctx, 20f), dp(ctx, 6f), 0, 0)
-            })
-        }
         screen.animateIn()
     }
 
@@ -224,8 +213,7 @@ class TrackScreen(
             setTextColor(p.label)
         })
         pad.addView(TextView(ctx).apply {
-            text = SimpleDateFormat("EEEE, MMM d 'at' h:mm a", Locale.US).format(Date(r.createdAt)) +
-                if (r.synced) " · synced" else " · pending sync"
+            text = SimpleDateFormat("EEEE, MMM d 'at' h:mm a", Locale.US).format(Date(r.createdAt))
             textSize = Ios.T_FOOTNOTE
             setTextColor(p.label2)
             setPadding(0, dp(ctx, 2f), 0, dp(ctx, 16f))
@@ -256,7 +244,6 @@ class TrackScreen(
         delBtn.setOnClickListener {
             sheet.dismiss()
             db.delete(r.clientId)
-            GigFlowApi.deleteRecord(settings.syncBaseUrl, settings.syncToken, r.type, r.clientId)
             Toast.makeText(ctx, "Deleted", Toast.LENGTH_SHORT).show()
             refresh()
         }
@@ -278,16 +265,10 @@ class TrackScreen(
         val edit = editing
         if (edit != null) {
             db.update(edit.clientId, type, payload)
-            GigFlowApi.updateRecord(settings.syncBaseUrl, settings.syncToken, type, edit.clientId, payload) { ok ->
-                if (ok) db.markSynced(edit.clientId)
-            }
             editing = null
             err("Updated")
         } else {
-            val row = db.insert(type, payload)
-            GigFlowApi.pushRecord(settings.syncBaseUrl, settings.syncToken, row.payload) { ok ->
-                if (ok) db.markSynced(row.clientId)
-            }
+            db.insert(type, payload)
             err("Saved")
         }
         refresh()
@@ -302,8 +283,7 @@ class TrackScreen(
         }
         return Sections.row(ctx, p,
             title = label,
-            subtitle = SimpleDateFormat("MMM d, h:mm a", Locale.US).format(Date(r.createdAt)) +
-                if (!r.synced) " · pending" else "",
+            subtitle = SimpleDateFormat("MMM d, h:mm a", Locale.US).format(Date(r.createdAt)),
             value = amount,
             iconGlyph = when (r.type) { "earning" -> "bolt"; "expense" -> "tag"; else -> "speed" },
             iconTint = tint,

@@ -1,9 +1,10 @@
 package app.gigflow.driver
 
 /**
- * Local mirror of GigFlow's web rule engine (src/lib/rules/engine.ts).
- * Same fields, same semantics — the phone evaluates the same way the web
- * "Test rules" panel does.
+ * Offer rule engine — scores a parsed offer against the driver's
+ * thresholds and produces a verdict plus human-readable reasons.
+ * Thresholds are currency-agnostic (compared in cents of whatever
+ * currency the offer was in).
  */
 data class RulePrefs(
     val enabled: Boolean = true,

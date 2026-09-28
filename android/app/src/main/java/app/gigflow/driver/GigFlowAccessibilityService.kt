@@ -15,9 +15,7 @@ import org.json.JSONObject
  * them against the user's rules, shows the floating verdict, and optionally
  * taps accept/decline when automation toggles are on.
  *
- * Everything runs on-device. No screen content leaves the phone — only the
- * distilled offer fields (payout, distance, duration, verdict) are pushed to
- * GigFlow if sync is configured.
+ * Everything runs on-device — no screen content or offer data leaves the phone.
  */
 class GigFlowAccessibilityService : AccessibilityService() {
 
@@ -34,7 +32,6 @@ class GigFlowAccessibilityService : AccessibilityService() {
     private var hideToken = ""
     private var tts: TextToSpeech? = null
     private var localDb: LocalDb? = null
-    private var pendingAutoAccept: Runnable? = null
     private var countdownTicker: Runnable? = null
 
     // Auto-shift tracking state
@@ -45,6 +42,10 @@ class GigFlowAccessibilityService : AccessibilityService() {
     companion object {
         /** Auto-stop shift tracking after this long with no driver-app events. */
         private const val IDLE_STOP_MS = 30 * 60_000L
+
+        /** Frames can flicker mid-animation; give an offer this long to
+         *  reappear before hiding the overlay. */
+        private const val MISS_GRACE_MS = 2_000L
 
         /** Live instance while the service is enabled — null otherwise. */
         @Volatile var instance: GigFlowAccessibilityService? = null
@@ -84,11 +85,36 @@ class GigFlowAccessibilityService : AccessibilityService() {
             overlay.show(scored) { overlay.hide() }
             if (settings.voiceAlerts) {
                 tts?.speak(
-                    "Test offer, ${"%.2f".format(o.payoutCents / 100.0)} ${currencyName(o.currencySymbol)}",
+                    "Test offer, ${spokenAmount(o.payoutCents, o.currencySymbol)}",
                     TextToSpeech.QUEUE_FLUSH, null, "test",
                 )
             }
         }
+    }
+
+    /**
+     * Offer cards often live in a popup/dialog window that isn't the
+     * "active" window, and rootInActiveWindow is a known-null API. Fall
+     * back to scanning all interactive windows for the driver app.
+     */
+    private fun appWindowRoot(pkg: String): android.view.accessibility.AccessibilityNodeInfo? {
+        rootInActiveWindow?.let { if (it.packageName?.toString() == pkg) return it }
+        try {
+            for (w in windows) {
+                val r = w.root ?: continue
+                if (r.packageName?.toString() == pkg) return r
+            }
+        } catch (_: Exception) { }
+        return null
+    }
+
+    /** Hide the overlay only after the offer's been missing for a bit —
+     *  single-frame parse misses are normal (animations, partial draws)
+     *  and shouldn't flicker the verdict off. */
+    private fun maybeOfferGone(now: Long) {
+        if (activeOffer == null) return
+        if (now - lastSeenAt < MISS_GRACE_MS) return
+        offerGone()
     }
 
     /** Last-known fix — good enough for tagging where an offer appeared. */
@@ -116,8 +142,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
         if (now - lastScanAt < 350) return // throttle contentChanged storms
         lastScanAt = now
 
-        val root = rootInActiveWindow ?: run { offerGone(); return }
-        if (root.packageName?.toString() != pkg) { offerGone(); return }
+        val root = appWindowRoot(pkg) ?: run { maybeOfferGone(now); return }
 
         val nodes = OfferParser.flatten(root)
         val offer = OfferParser.parse(pkg, nodes)
@@ -129,7 +154,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
             Diagnostics.record(this, pkg, if (hasMoney) "miss" else "idle",
                 nodes.map { it.text })
             maybeLogCompletion(pkg, nodes, now)
-            offerGone()
+            maybeOfferGone(now)
             return
         }
         Diagnostics.record(this, pkg, "offer", offer.rawTexts)
@@ -146,7 +171,6 @@ class GigFlowAccessibilityService : AccessibilityService() {
         activeOffer = scored
 
         val loc = lastLocation()
-        loc?.let { localDb?.addPoint(it.first, it.second) }
 
         OfferLog.add(this, OfferLog.Entry(
             at = offer.seenAt,
@@ -163,7 +187,6 @@ class GigFlowAccessibilityService : AccessibilityService() {
             reservation = offer.isReservation,
             currency = offer.currencySymbol,
         ))
-        GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, scored, "shown")
 
         // Mystro-style voice alert for the verdict, when enabled.
         if (settings.voiceAlerts) {
@@ -173,7 +196,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
                 Verdict.BAD -> "Skip it"
             }
             tts?.speak(
-                "$label, ${"%.2f".format(offer.payoutCents / 100.0)} ${currencyName(offer.currencySymbol)}",
+                "$label, ${spokenAmount(offer.payoutCents, offer.currencySymbol)}",
                 TextToSpeech.QUEUE_FLUSH, null, "offer",
             )
         }
@@ -242,7 +265,6 @@ class GigFlowAccessibilityService : AccessibilityService() {
             }
         }
         countdownTicker = ticker
-        pendingAutoAccept = Runnable { handler.removeCallbacks(ticker) }
         handler.postDelayed(ticker, 1000)
     }
 
@@ -276,7 +298,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
 
     /**
      * Post-trip earnings capture — reads the completed-delivery / earnings
-     * summary screen and records the payout as a local earning (syncs later).
+     * summary screen and records the payout as a local earning.
      */
     private fun maybeLogCompletion(pkg: String, nodes: List<OfferParser.FlatNode>, now: Long) {
         if (!settings.autoLogEarnings) return
@@ -287,22 +309,27 @@ class GigFlowAccessibilityService : AccessibilityService() {
         val payload = JSONObject()
             .put("amountCents", comp.payoutCents)
             .put("category", "TRIP")
-            .put("platformKey", GigFlowApi.platformKeyFor(pkg))
+            .put("platformKey", platformKeyFor(pkg))
             .put("notes", "Auto-captured")
             .put("earnedAt", now)
         comp.tipCents?.let { payload.put("tipCents", it) }
 
-        val db = localDb ?: return
-        val row = db.insert("earning", payload)
-        GigFlowApi.pushRecord(settings.syncBaseUrl, settings.syncToken, row.payload) { ok ->
-            if (ok) db.markSynced(row.clientId)
-        }
+        localDb?.insert("earning", payload)
         if (settings.voiceAlerts) {
             tts?.speak(
-                "Logged ${"%.2f".format(comp.payoutCents / 100.0)} ${currencyName(comp.currencySymbol)}",
+                "Logged ${spokenAmount(comp.payoutCents, comp.currencySymbol)}",
                 TextToSpeech.QUEUE_ADD, null, "earn",
             )
         }
+    }
+
+    /** "12.50 dollars" / "1850 forints" — zero-decimal currencies speak
+     *  whole units, nobody says "eighteen fifty point zero zero forints". */
+    private fun spokenAmount(cents: Int, symbol: String): String {
+        val name = currencyName(symbol)
+        return if (symbol in setOf("Ft", "kr", "zł", "lei", "Kč", "₺", "₴"))
+            "%.0f %s".format(cents / 100.0, name)
+        else "%.2f %s".format(cents / 100.0, name)
     }
 
     /** Spoken currency name for TTS — "Ft" reads as "forints", etc. */
@@ -323,7 +350,6 @@ class GigFlowAccessibilityService : AccessibilityService() {
     private fun cancelAutoAccept() {
         countdownTicker?.let { handler.removeCallbacks(it) }
         countdownTicker = null
-        pendingAutoAccept = null
     }
 
     private fun recordAction(s: ScoredOffer, action: String) {
@@ -337,12 +363,25 @@ class GigFlowAccessibilityService : AccessibilityService() {
             reservation = o.isReservation,
             currency = o.currencySymbol,
         ))
-        GigFlowApi.pushOffer(settings.syncBaseUrl, settings.syncToken, s, action)
+    }
+
+    /** Watched-package → platform key used to tag captured earnings. */
+    private fun platformKeyFor(pkg: String): String = when {
+        "uber" in pkg -> "uber"
+        "lyft" in pkg -> "lyft"
+        "doordash" in pkg -> "doordash"
+        "instacart" in pkg -> "instacart"
+        "amazon" in pkg || "rabbit" in pkg -> "amazon-flex"
+        "spark" in pkg || "walmart" in pkg -> "spark"
+        "wolt" in pkg -> "wolt"
+        "foodora" in pkg || "logistics.rider" in pkg -> "foodora"
+        else -> "other"
     }
 
     private fun offerGone() {
         hideRunnable?.let { handler.removeCallbacks(it) }
         hideToken = ""
+        cancelAutoAccept() // never tap bounds for a card that's no longer up
         if (activeOffer != null) {
             activeOffer = null
             lastFingerprint = ""
@@ -351,7 +390,7 @@ class GigFlowAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        overlay.hide()
+        offerGone()
     }
 
     override fun onDestroy() {

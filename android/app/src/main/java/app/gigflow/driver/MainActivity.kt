@@ -121,28 +121,12 @@ class MainActivity : Activity() {
 
     private fun refresh(i: Int): Unit {
         Ios.hapticsEnabled = settings.haptics
-        syncIfConfigured()
         return when (i) {
             0 -> dashboard.refresh()
             1 -> offers.refresh()
             2 -> track.refresh()
             3 -> plan.refresh()
             else -> assist.refresh()
-        }
-    }
-
-    /** Flush offline records and refresh dashboard totals on launch/resume. */
-    private var lastSync = 0L
-    private fun syncIfConfigured() {
-        if (!GigFlowApi.configured(settings.syncBaseUrl, settings.syncToken)) return
-        val now = System.currentTimeMillis()
-        if (now - lastSync < 15_000) return // don't hammer on every tab switch
-        lastSync = now
-        val pending = db.unsynced()
-        if (pending.isNotEmpty()) {
-            GigFlowApi.pushBatch(settings.syncBaseUrl, settings.syncToken, pending) { ok ->
-                if (ok) pending.forEach { db.markSynced(it.clientId) }
-            }
         }
     }
 

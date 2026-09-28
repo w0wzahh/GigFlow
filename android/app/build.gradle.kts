@@ -10,8 +10,8 @@ android {
         applicationId = "app.gigflow.driver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.2.0"
+        versionCode = 17
+        versionName = "1.3.0"
     }
 
     buildTypes {
@@ -30,8 +30,3 @@ android {
     }
 }
 
-dependencies {
-    // osmdroid: Apache-2.0 map renderer on OpenStreetMap tiles — no API key,
-    // tiles cache on-device for offline re-viewing. Powers the Plan heatmap.
-    implementation("org.osmdroid:osmdroid-android:6.1.18")
-}

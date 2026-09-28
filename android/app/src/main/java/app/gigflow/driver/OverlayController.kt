@@ -42,8 +42,13 @@ class OverlayController(private val service: AccessibilityService) {
         tickerHandler.postDelayed(r, 1000)
     }
 
+    private val suffixCurrencies = setOf("Ft", "kr", "zł", "lei", "Kč", "₺", "₴")
+
     private fun money(cents: Int?, symbol: String = "$") =
-        cents?.let { "$symbol%.2f".format(it / 100.0) } ?: "—"
+        cents?.let {
+            if (symbol in suffixCurrencies) "%,.0f %s".format(it / 100.0, symbol)
+            else "$symbol%.2f".format(it / 100.0)
+        } ?: "—"
 
     /** Update the auto-accept countdown line, if shown. */
     fun setCountdown(secondsLeft: Int) {

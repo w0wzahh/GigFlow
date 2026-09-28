@@ -10,21 +10,18 @@ Five tabs behind a floating frosted tab bar:
 
 - **Home** — today's net/gross/hours/per-hour rate plus a full analytics
   section: week/month toggle, per-hour and per-distance rates, platform
-  breakdown, daily gross chart, goals, and insights. Pulls live aggregates
-  from the web workspace when sync is configured; otherwise computes from
-  on-device records.
+  breakdown, daily gross chart, and week-over-week deltas — all computed
+  from on-device records.
 - **Offers** — the assistant's scored-offer feed: verdict pill (Good /
   Borderline / Skipped), per-distance and per-hour rates, grouped by day,
   filterable by a segmented control; tap a row for full metrics.
 - **Plan** — recurring shift blocks with day-of-week picker, start/end
-  times, and an optional earnings target; syncs to `/api/mobile/schedule`.
+  times, and an optional earnings target; saved on-device.
 - **Track** — quick-add earnings, expenses, and mileage in grouped iOS
-  forms. Everything saves to a local SQLite store first (works offline) and
-  pushes to the web app when connected, with `clientId` dedupe so retries
-  never double-count.
+  forms. Everything saves to a local SQLite store — works fully offline.
 - **Assistant** — accessibility-service status, Monitoring / Auto-accept /
   Auto-decline switches (both automation switches off by default), offer
-  rules, and web sync settings.
+  rules, and diagnostics.
 
 ## The assistant (Mystro-style, honest version)
 
@@ -49,8 +46,6 @@ Five tabs behind a floating frosted tab bar:
   exact texts the service read, so a parse miss is debuggable in seconds.
 - **Send a test offer** (Assistant → Automation): dry-runs score → overlay
   → voice without logging anything, so you can verify setup while parked.
-- Pushes each scored offer to `POST /api/mobile/offers` so the web Offers
-  feed sees what the phone saw.
 
 ## Honest limitations
 
@@ -59,8 +54,7 @@ Five tabs behind a floating frosted tab bar:
 - **Heuristic parsing.** Driver apps change layouts often. If a card can't
   be parsed, nothing is shown — the app errs toward silence and never
   guesses at buttons.
-- **Android only.** iOS doesn't permit this class of screen-reading. The
-  web app is the iOS-friendly surface; this app is the Android advantage.
+- **Android only.** iOS doesn't permit this class of screen-reading.
 - **Automation is opt-in** and only fires when the button was found
   unambiguously.
 - **Policy note.** Google Play restricts accessibility services that aren't
@@ -78,21 +72,8 @@ gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Connect to the web app
-
-1. GigFlow web → **Settings → Security → Android companion app → Generate
-   token** (shown once, SHA-256 hashed at rest).
-2. App → **Assistant → GigFlow sync**: paste the web URL
-   (`http://<PC-LAN-IP>:3000` on the same Wi-Fi, or your deployed URL) and
-   the token → **Connect**.
-
-The token can push offers/records and read dashboard totals — it cannot
-read full history or change account settings. Revoke any time in Settings.
-
 ## Data handling
 
-- Screen content never leaves the phone; only distilled fields (payout,
-  distance, duration, verdict, action) sync.
-- Records save to `gigflow.db` locally first; unsynced rows flush as a
-  batch when connectivity returns.
-- The token lives in private app storage and is never logged.
+- Everything is on-device: screen content, offers, records, GPS — the app
+  makes no network calls and needs no account.
+- Records live in `gigflow.db` (SQLite, private app storage).

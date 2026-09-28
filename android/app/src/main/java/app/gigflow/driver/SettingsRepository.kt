@@ -103,8 +103,11 @@ class SettingsRepository(context: Context) {
     }
 
     fun clearPlatformOverride(pkg: String) {
-        prefs.edit().putString("platform_rules",
-            overrides().remove(pkg).toString()).apply()
+        // JSONObject.remove() returns the removed value (null if absent) —
+        // mutate the object, don't stringify the return.
+        val o = overrides()
+        o.remove(pkg)
+        prefs.edit().putString("platform_rules", o.toString()).apply()
     }
 
     /** Global rules merged with the package's overrides, if any exist. */
@@ -120,16 +123,6 @@ class SettingsRepository(context: Context) {
             maxDistanceKm = if (o.has("maxDistanceKm")) o.getDouble("maxDistanceKm") else base.maxDistanceKm,
         )
     }
-
-    /** GigFlow web app base URL, e.g. https://app.gigflow.example — empty = off. */
-    var syncBaseUrl: String
-        get() = prefs.getString("sync_base_url", "") ?: ""
-        set(v) = prefs.edit().putString("sync_base_url", v.trim().removeSuffix("/")).apply()
-
-    /** Personal mobile API token generated in Settings → Security. */
-    var syncToken: String
-        get() = prefs.getString("sync_token", "") ?: ""
-        set(v) = prefs.edit().putString("sync_token", v.trim()).apply()
 
     fun rules() = RulePrefs(
         enabled = enabled,

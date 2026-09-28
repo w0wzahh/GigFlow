@@ -51,12 +51,10 @@ Everything runs on-device. No account required, no subscription, no tracking.
   teleport filtering; can start itself when a driver app opens
 - **Automatic earnings capture** — post-trip summary screens become earning
   records without typing anything
-- **Activity heatmap** — OpenStreetMap-based map of where *your* work
-  happens, built only from your own tracked shifts and tagged offers
 - **Diagnostics** — see exactly what the assistant last read inside each
   driver app, so parse misses are debuggable instead of silent
-- **Local-first** — SQLite on-device, optional sync to the self-hosted web
-  workspace
+- **100% local** — every record lives in on-device SQLite; nothing leaves
+  the phone
 
 ## Screenshots
 
@@ -65,13 +63,13 @@ Everything runs on-device. No account required, no subscription, no tracking.
   <tr>
     <td><img src="docs/screenshots/android-home.png" width="220" alt="Dashboard" /></td>
     <td><img src="docs/screenshots/android-track.png" width="220" alt="Track" /></td>
-    <td><img src="docs/screenshots/android-plan.png" width="220" alt="Plan + heatmap" /></td>
+    <td><img src="docs/screenshots/android-plan.png" width="220" alt="Schedule" /></td>
     <td><img src="docs/screenshots/android-assist.png" width="220" alt="Assistant" /></td>
   </tr>
   <tr>
     <td align="center"><sub>Dashboard</sub></td>
     <td align="center"><sub>Track + shift mileage</sub></td>
-    <td align="center"><sub>Plan + activity heatmap</sub></td>
+    <td align="center"><sub>Schedule</sub></td>
     <td align="center"><sub>Assistant rules</sub></td>
   </tr>
 </table>
@@ -86,7 +84,7 @@ Setup takes under a minute — the app walks you through it in the Assist tab:
 
 1. **Enable the accessibility service** (required — this is what lets
    GigFlow see offer cards in your driver apps)
-2. **Allow location** (for automatic mileage + heatmap)
+2. **Allow location** (for automatic mileage tracking)
 3. **Allow notifications** (the shift tracker runs as a foreground service)
 
 Then open a driver app and watch the verdict card appear on offers.
@@ -112,8 +110,8 @@ gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
   only inside the driver apps you watch
 - **Foreground location service** for shift mileage — visible in the
   notification shade the whole time it runs
-- **osmdroid + OpenStreetMap** for the heatmap — no API key, tiles cache
-  on-device
+- **Zero third-party dependencies** — plain Android Views and SQLite, no
+  accounts, no network calls
 
 ## Project structure
 
@@ -121,7 +119,7 @@ gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
 android/           the app — Kotlin, plain Views, near-zero dependencies
   app/src/main/
     java/.../      accessibility service, mileage tracker, parser, overlay,
-                   rule engine, local DB, sync client, iOS-style UI
+                   rule engine, local DB, iOS-style UI
     res/           icons, service config, strings
 docs/              legal docs, screenshots, notes
 ```
@@ -139,9 +137,8 @@ docs/              legal docs, screenshots, notes
 
 ## Privacy
 
-Screen content never leaves the phone — only distilled offer fields (and
-only if you configure sync). GPS breadcrumbs stay on-device. Automation is
-opt-in and cancellable. Full details:
+Screen content never leaves the phone — the app makes no network calls at
+all. Automation is opt-in and cancellable. Full details:
 [`docs/legal/privacy-policy.md`](docs/legal/privacy-policy.md).
 
 ## Contributing

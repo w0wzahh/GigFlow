@@ -18,11 +18,9 @@ import org.json.JSONObject
 /**
  * Shift mileage tracker — Gridwise-style on/off tracking. Started from the
  * Track tab, runs as a location-type foreground service so it keeps working
- * while the driver is in a driver app. GPS fixes accumulate distance; GPS
- * breadcrumbs are stored so the Plan heatmap can show where work happened.
+ * while the driver is in a driver app. GPS fixes accumulate distance locally.
  *
- * Only raw distances/positions are kept on-device; nothing leaves the phone
- * except the normal mileage record push when sync is configured.
+ * Everything stays on-device — nothing leaves the phone.
  */
 class MileageTracker : Service(), LocationListener {
 
@@ -120,10 +118,7 @@ class MileageTracker : Service(), LocationListener {
             val d = prev.distanceTo(location)
             if (d < 5f || d > 500f) return // stationary jitter or a teleport
             kmSoFar += d / 1000.0
-            db?.addPoint(location.latitude, location.longitude)
             updateNotification()
-        } else {
-            db?.addPoint(location.latitude, location.longitude)
         }
         last = location
     }
@@ -149,15 +144,11 @@ class MileageTracker : Service(), LocationListener {
         kmSoFar = 0.0
         startedAt = 0L
         if (km >= 0.05 && db != null) {
-            val settings = SettingsRepository(this)
-            val row = db!!.insert("mileage", JSONObject()
+            db!!.insert("mileage", JSONObject()
                 .put("distanceKm", km)
                 .put("purpose", "WORK")
                 .put("description", "Auto-tracked shift")
                 .put("date", started))
-            GigFlowApi.pushRecord(settings.syncBaseUrl, settings.syncToken, row.payload) { ok ->
-                if (ok) db?.markSynced(row.clientId)
-            }
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

@@ -13,7 +13,7 @@ import app.gigflow.driver.*
 import app.gigflow.driver.ui.Ios.Palette
 import app.gigflow.driver.ui.Ios.dp
 
-/** Assist — assistant status, rules, automation switches, sync config. */
+/** Assist — assistant status, rules, automation switches, diagnostics. */
 class AssistScreen(
     ctx: Context,
     private val p: Palette,
@@ -49,8 +49,6 @@ class AssistScreen(
             textSize = Ios.T_FOOTNOTE; setTextColor(p.label3)
             setPadding(dp(ctx, 20f), dp(ctx, 6f), dp(ctx, 16f), 0)
         })
-        c.addView(Sections.header(ctx, p, "GigFlow sync"))
-        c.addView(syncCard())
         c.addView(Sections.header(ctx, p, "About"))
         c.addView(aboutCard())
         c.addView(Sections.header(ctx, p, "Credits"))
@@ -311,34 +309,6 @@ class AssistScreen(
         return card
     }
 
-    private fun syncCard(): View {
-        val card = Sections.card(ctx, p)
-        val (rUrl, url) = Sections.formField(ctx, p, "Web URL", settings.syncBaseUrl, numeric = false, hint = "http://192.168.1.5:3000")
-        val (rToken, token) = Sections.formField(ctx, p, "Token", settings.syncToken, numeric = false, hint = "gf_…")
-        token.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        card.addView(rUrl); card.addView(Sections.separator(ctx, p))
-        card.addView(rToken); card.addView(Sections.separator(ctx, p))
-        card.addView(LinearLayout(ctx).apply {
-            setPadding(dp(ctx, 12f), dp(ctx, 12f), dp(ctx, 12f), dp(ctx, 12f))
-            val btn = iosButton(ctx, p, "Connect")
-            addView(btn, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            btn.setOnClickListener {
-                settings.syncBaseUrl = url.text.toString()
-                settings.syncToken = token.text.toString()
-                // flush any offline records
-                val pending = db.unsynced()
-                if (pending.isNotEmpty()) {
-                    GigFlowApi.pushBatch(settings.syncBaseUrl, settings.syncToken, pending) { ok ->
-                        if (ok) pending.forEach { db.markSynced(it.clientId) }
-                    }
-                }
-                Toast.makeText(ctx, if (settings.syncBaseUrl.isBlank()) "Sync off" else "Saved", Toast.LENGTH_SHORT).show()
-            }
-        })
-        return card
-    }
-
     private fun aboutCard(): View {
         val card = Sections.card(ctx, p)
         card.addView(Sections.row(ctx, p,
@@ -367,7 +337,7 @@ class AssistScreen(
             } catch (_: Exception) { "?" },
             iconGlyph = "doc", iconTint = p.gray,
         ))
-        c_footer(card, "Everything stays on-device except the fields you sync. GigFlow isn't affiliated with any gig platform.")
+        c_footer(card, "Everything stays on-device. GigFlow isn't affiliated with any gig platform.")
         return card
     }
 

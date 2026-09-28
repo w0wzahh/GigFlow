@@ -7,9 +7,9 @@ import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONObject
 
 /**
- * On-device store for records the user logs in the app (earnings, expenses,
- * mileage). Rows carry a `clientId` UUID — the server dedupes on it, so the
- * app can retry pushes after being offline without double-counting.
+ * On-device store for everything the app logs (earnings, expenses, mileage,
+ * schedules, GPS breadcrumbs). Rows carry a `clientId` UUID as a stable local
+ * identity for edit/delete.
  */
 class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
 
@@ -25,7 +25,6 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
                )""",
         )
         createSchedules(db)
-        createPoints(db)
     }
 
     private fun createSchedules(db: SQLiteDatabase) {
@@ -39,20 +38,8 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
         )
     }
 
-    private fun createPoints(db: SQLiteDatabase) {
-        db.execSQL(
-            """CREATE TABLE IF NOT EXISTS points(
-                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                 lat REAL NOT NULL,
-                 lng REAL NOT NULL,
-                 created_at INTEGER NOT NULL
-               )""",
-        )
-    }
-
     override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) {
         if (old < 2) createSchedules(db)
-        if (old < 3) createPoints(db)
     }
 
     data class Row(
@@ -82,18 +69,7 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
     fun all(limit: Int = 100): List<Row> =
         query("SELECT * FROM records ORDER BY created_at DESC LIMIT $limit")
 
-    fun unsynced(): List<Row> =
-        query("SELECT * FROM records WHERE synced = 0 ORDER BY created_at ASC")
-
-    fun markSynced(clientId: String) {
-        writableDatabase.execSQL(
-            "UPDATE records SET synced = 1 WHERE client_id = ?",
-            arrayOf(clientId),
-        )
-    }
-
-    /** Updates the payload of a record — keeps the same clientId and marks it
-     *  unsynced so the change is pushed. */
+    /** Updates the payload of a record — keeps the same clientId. */
     fun update(clientId: String, type: String, payload: JSONObject) {
         payload.put("type", type)
         payload.put("clientId", clientId)
@@ -129,11 +105,6 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
 
     private fun query(sql: String): List<Row> = query(sql, null)
 
-    fun unsyncedCount(): Int =
-        readableDatabase.rawQuery("SELECT COUNT(*) FROM records WHERE synced = 0", null).use {
-            it.moveToFirst(); it.getInt(0)
-        }
-
     // ---- schedule entries ----
 
     data class Sched(val clientId: String, val payload: JSONObject, val synced: Boolean)
@@ -162,38 +133,7 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
         writableDatabase.execSQL("DELETE FROM schedules WHERE client_id = ?", arrayOf(clientId))
     }
 
-    fun markScheduleSynced(clientId: String) {
-        writableDatabase.execSQL("UPDATE schedules SET synced = 1 WHERE client_id = ?", arrayOf(clientId))
-    }
-
-    // ---- GPS breadcrumbs (shift tracking + offer locations) ----
-
-    fun addPoint(lat: Double, lng: Double) {
-        writableDatabase.execSQL(
-            "INSERT INTO points(lat, lng, created_at) VALUES(?,?,?)",
-            arrayOf(lat, lng, System.currentTimeMillis()),
-        )
-        // Cap at 5000 rows — breadcrumbs are for the heatmap, not a log.
-        writableDatabase.execSQL(
-            "DELETE FROM points WHERE id NOT IN (SELECT id FROM points ORDER BY id DESC LIMIT 5000)",
-        )
-    }
-
-    data class Point(val lat: Double, val lng: Double, val weight: Int)
-
-    /** Points grouped to ~150m cells with a weight — feeds the heatmap. */
-    fun heatPoints(): List<Point> {
-        val out = mutableListOf<Point>()
-        readableDatabase.rawQuery(
-            """SELECT ROUND(lat,3) AS la, ROUND(lng,3) AS ln, COUNT(*) AS n
-                 FROM points GROUP BY la, ln""", null,
-        ).use { c ->
-            while (c.moveToNext()) out.add(Point(c.getDouble(0), c.getDouble(1), c.getInt(2)))
-        }
-        return out
-    }
-
-    /** Local aggregates so the dashboard works offline. */
+    /** Local aggregates. */
     fun totals(sinceMs: Long): Totals = stats(sinceMs).let {
         Totals(it.earnedCents, it.spentCents, it.km)
     }

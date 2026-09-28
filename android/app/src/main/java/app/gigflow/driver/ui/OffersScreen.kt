@@ -25,12 +25,13 @@ class OffersScreen(ctx: Context, private val p: Palette, private val settings: a
     private fun isKm() = settings.distanceUnit == "KM"
     private fun distText(km: Double) =
         "%.1f %s".format(if (isKm()) km else km * 0.621371, if (isKm()) "km" else "mi")
-    private fun perDistText(centsPerMile: Int, symbol: String = "$") =
-        "%s%.2f/%s".format(
-            symbol,
-            (if (isKm()) centsPerMile / 1.609344 else centsPerMile.toDouble()) / 100f,
-            if (isKm()) "km" else "mi",
-        )
+    private val suffixCurrencies = setOf("Ft", "kr", "zł", "lei", "Kč", "₺", "₴")
+    private fun perDistText(centsPerMile: Int, symbol: String = "$"): String {
+        val v = (if (isKm()) centsPerMile / 1.609344 else centsPerMile.toDouble()) / 100f
+        val unit = if (isKm()) "km" else "mi"
+        return if (symbol in suffixCurrencies) "%,.0f %s/%s".format(v, symbol, unit)
+        else "%s%.2f/%s".format(symbol, v, unit)
+    }
 
     fun refresh() {
         screen.column.removeAllViews()
