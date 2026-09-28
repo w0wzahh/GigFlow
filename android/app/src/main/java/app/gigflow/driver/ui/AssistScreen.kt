@@ -28,6 +28,7 @@ class AssistScreen(
         val c = screen.column
 
         c.addView(statusCard())
+        c.addView(setupCard())
         c.addView(Sections.header(ctx, p, "Automation"))
         c.addView(automationCard())
         c.addView(Sections.header(ctx, p, "Offer rules"))
@@ -41,6 +42,13 @@ class AssistScreen(
         })
         c.addView(Sections.header(ctx, p, "Preferences"))
         c.addView(preferencesCard())
+        c.addView(Sections.header(ctx, p, "Diagnostics"))
+        c.addView(diagnosticsCard())
+        c.addView(TextView(ctx).apply {
+            text = "What the assistant last saw in each app. If an offer wasn't scored, tap the app to see the texts it read — that tells us what to fix."
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label3)
+            setPadding(dp(ctx, 20f), dp(ctx, 6f), dp(ctx, 16f), 0)
+        })
         c.addView(Sections.header(ctx, p, "GigFlow sync"))
         c.addView(syncCard())
         c.addView(Sections.header(ctx, p, "About"))
@@ -91,6 +99,116 @@ class AssistScreen(
             }
         })
         return card
+    }
+
+    /** Guided setup — Mystro's biggest UX lesson: the app does *nothing*
+     *  until the accessibility service is on, so surface that loudly. */
+    private fun setupCard(): View {
+        val serviceOn = OverlayController.isServiceEnabled(ctx)
+        val locOn = MileageTracker.hasLocationPermission(ctx)
+        val notifOn = android.os.Build.VERSION.SDK_INT < 33 ||
+            ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (serviceOn && locOn && notifOn) return View(ctx) // all good — hide
+
+        val card = Sections.card(ctx, p)
+        var first = true
+        fun step(title: String, subtitle: String, done: Boolean, action: (() -> Unit)?) {
+            if (!first) card.addView(Sections.separator(ctx, p))
+            first = false
+            card.addView(Sections.row(ctx, p,
+                title = title,
+                subtitle = subtitle,
+                iconGlyph = if (done) "checkmark" else "chevron.right",
+                iconTint = if (done) p.green else p.orange,
+                chevron = !done && action != null,
+            ) { action?.invoke() })
+        }
+        step("Enable the accessibility service",
+            "Required — without it the assistant can't see offers at all",
+            serviceOn) {
+            ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        step("Allow location access",
+            "Needed for automatic shift mileage and the work heatmap",
+            locOn) {
+            (ctx as? android.app.Activity)?.requestPermissions(
+                arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION),
+                MainActivity.REQ_LOCATION,
+            )
+        }
+        step("Allow notifications",
+            "Shows the shift-tracking notification while a shift runs",
+            notifOn) {
+            (ctx as? android.app.Activity)?.requestPermissions(
+                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 9)
+        }
+        c_footer(card, "Finish these three, then turn on the automation switches below.")
+        return card
+    }
+
+    /** What the service last saw per watched app — tap to inspect. */
+    private fun diagnosticsCard(): View {
+        val card = Sections.card(ctx, p)
+        var first = true
+        watchedApps.forEach { (name, pkg) ->
+            if (!first) card.addView(Sections.separator(ctx, p))
+            first = false
+            val snap = Diagnostics.get(ctx, pkg)
+            val (label, tint) = when {
+                snap == null -> "Not seen yet" to p.label3
+                snap.outcome == "offer" -> "Offer scored · ${ago(snap.at)}" to p.green
+                snap.outcome == "miss" -> "Screen missed · ${ago(snap.at)}" to p.orange
+                else -> "Screen seen · ${ago(snap.at)}" to p.label2
+            }
+            card.addView(Sections.row(ctx, p,
+                title = name,
+                subtitle = label,
+                iconGlyph = "doc", iconTint = tint,
+                chevron = snap?.texts?.isNotEmpty() == true,
+            ) { snap?.let { showDiag(name, it) } })
+        }
+        return card
+    }
+
+    private fun ago(at: Long): String {
+        val s = (System.currentTimeMillis() - at) / 1000
+        return when {
+            s < 60 -> "just now"
+            s < 3600 -> "${s / 60}m ago"
+            s < 86400 -> "${s / 3600}h ago"
+            else -> "${s / 86400}d ago"
+        }
+    }
+
+    /** Sheet listing the texts the parser read — screenshot this to report. */
+    private fun showDiag(name: String, snap: Diagnostics.Snap) {
+        val sheet = IosSheet(ctx, p)
+        val col = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 20f), dp(ctx, 4f), dp(ctx, 20f), dp(ctx, 12f))
+        }
+        col.addView(TextView(ctx).apply {
+            text = "$name · ${snap.outcome}"
+            textSize = Ios.T_HEADLINE; setTypeface(typeface, Typeface.BOLD)
+            setTextColor(p.label); setPadding(0, 0, 0, dp(ctx, 4f))
+        })
+        col.addView(TextView(ctx).apply {
+            text = if (snap.outcome == "miss")
+                "This screen had a price on it but wasn't read as an offer — the app's layout probably changed. Screenshot this list and share it."
+            else "Everything the assistant read on the last screen."
+            textSize = Ios.T_FOOTNOTE; setTextColor(p.label2)
+            setPadding(0, 0, 0, dp(ctx, 10f))
+        })
+        snap.texts.forEach { t ->
+            col.addView(TextView(ctx).apply {
+                text = "· $t"
+                textSize = Ios.T_FOOTNOTE; setTextColor(p.label)
+                setPadding(0, dp(ctx, 2f), 0, dp(ctx, 2f))
+            })
+        }
+        sheet.add(col).show()
     }
 
     private fun automationCard(): View {

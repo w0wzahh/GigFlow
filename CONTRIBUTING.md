@@ -16,18 +16,7 @@ product, not a demo — contributions should keep that bar.
 
 ## Development setup
 
-**Web app**
-
-```bash
-cd web
-cp ../.env.example .env     # set APP_SECRET — see README
-npm install                 # prisma generate runs via postinstall
-npx prisma migrate dev      # create + migrate prisma/dev.db
-npm run db:seed             # seed the platform catalog
-npm run dev                 # http://localhost:3000
-```
-
-**Android companion**
+**Android app** (the public repo)
 
 ```bash
 cd android
@@ -36,20 +25,22 @@ cd android
 gradle assembleDebug        # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
+**Web workspace** (self-hosted companion — developed separately): a Next.js
+app lives in `web/` locally. Same setup as any Next project:
+`cd web && npm install && npx prisma migrate dev && npm run dev`.
+
 ## Ground rules
 
 These aren't stylistic preferences — they're product guarantees:
 
-- **No fake integrations or mock data.** If a platform lacks an official
-  API, mark it `MANUAL` or `COMING_SOON` in the catalog — never simulate a
-  real connection. There is no demo mode; every record is real user data.
+- **No fake integrations or mock data.** No platform publishes a driver
+  API — accessibility parsing is what exists, and we say so. Never
+  simulate a real connection or seed demo records.
 - **Honest claims.** Do not describe accessibility-based reading as a
   platform "integration," and do not promise automation beyond what the
   code actually does.
 - **Money is integer cents; distances are kilometers.** Convert for
   display at the edge only.
-- **All mutations go through `/api/*`** with Zod validation and per-user
-  authorization. Pages read via `lib/` functions — no duplicate fetches.
 - **Privacy is a feature.** Screen content never leaves the device; sync
   is opt-in. Don't add telemetry, analytics SDKs, or third-party calls
   without an explicit discussion first.
@@ -58,28 +49,30 @@ These aren't stylistic preferences — they're product guarantees:
 
 ## Code style
 
-- **Web:** TypeScript strict, existing primitives (`Card`, `Badge`,
-  `Field`, `cn()`), server components for reads, client components only
-  where interactivity requires it.
 - **Android:** plain Kotlin Views, no Compose/Material dependencies — the
   design system lives in `ui/Ios.kt`. Keep it dependency-free.
+- **Web (local workspace):** TypeScript strict, server components for
+  reads, Zod at the API boundary.
 - Compact code; comment the *why*, not the *what*.
 
 ## Pull request checklist
 
-- [ ] `cd web && npm run typecheck && npm run lint && npm test` pass
-- [ ] `cd android && gradle assembleDebug` builds clean (if Android touched)
+- [ ] `cd android && gradle assembleDebug` builds clean
 - [ ] No new dependencies without a reason given in the PR
 - [ ] No secrets, tokens, or personal data in code, tests, or fixtures
 - [ ] Docs updated if behavior changed
 
-## Adding a platform integration
+## Fixing a parse miss
 
-1. Implement `PlatformIntegration` in `web/src/lib/integrations/<platform>.ts`.
-2. Register it in `web/src/lib/integrations/registry.ts`.
-3. Set the catalog row's `status` to `IMPORT`/`MANUAL` as appropriate and
-   set `adapterKey`.
-4. Add adapter tests under `web/tests/integration/`.
+Driver apps change their offer-card layouts — this is the most common
+failure. When a screen looks like an offer but nothing happens:
+
+1. Open **Assist → Diagnostics** and tap the app — the sheet lists every
+   text the assistant read on that screen.
+2. Screenshot it (redact personal details) and open an issue, or extend
+   `OfferParser.kt` yourself — it works on text patterns, not view IDs, so
+   a fix is usually a one-line regex.
+3. Test against a real screen; the parser errs toward silence when unsure.
 
 ## License
 

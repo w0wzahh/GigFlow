@@ -86,10 +86,17 @@ class GigFlowAccessibilityService : AccessibilityService() {
         val nodes = OfferParser.flatten(root)
         val offer = OfferParser.parse(pkg, nodes)
         if (offer == null) {
+            // A screen with a money figure but no parse is a "miss" — the
+            // card was probably there but the layout beat the heuristic.
+            // Record it so Diagnostics can show what we saw.
+            val hasMoney = nodes.any { OfferParser.MONEY.containsMatchIn(it.text) }
+            Diagnostics.record(this, pkg, if (hasMoney) "miss" else "idle",
+                nodes.map { it.text })
             maybeLogCompletion(pkg, nodes, now)
             offerGone()
             return
         }
+        Diagnostics.record(this, pkg, "offer", offer.rawTexts)
 
         // Same card still on screen — don't rescore/re-overlay every frame.
         if (offer.fingerprint == lastFingerprint && now - lastSeenAt < 60_000) {

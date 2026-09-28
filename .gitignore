@@ -55,3 +55,6 @@ next-env.d.ts
 
 # Local release builds (uploaded to GitHub Releases)
 releases/
+
+# Web workspace — developed locally, not part of the public repo
+web/

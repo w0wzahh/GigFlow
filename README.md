@@ -6,13 +6,14 @@
 
 **Your gig work. One flow.**
 
-Track earnings, expenses, and mileage. Score incoming offers against your own
-rules. Plan when and where to work. See what your time is actually worth —
-across every platform you drive for.
+An open-source Android app for rideshare and delivery drivers: reads offers
+on-screen, scores them against your rules, optionally accepts or declines for
+you, and tracks the rest of your work automatically — mileage, earnings, and
+where you actually drive.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
-[![Web](https://img.shields.io/badge/Web-Next.js%2016-black)](web)
-[![Android](https://img.shields.io/badge/Android-Kotlin%20companion-3DDC84)](android)
+[![Platform](https://img.shields.io/badge/Android-8.0%2B-3DDC84)](android)
+[![Release](https://img.shields.io/github/v/release/w0wzahh/GigFlow)](https://github.com/w0wzahh/GigFlow/releases)
 [![Open Source](https://img.shields.io/badge/Open%20Source-❤-blueviolet)](https://ko-fi.com/w0wzahh)
 
 </div>
@@ -21,42 +22,41 @@ across every platform you drive for.
 
 ## What it is
 
-GigFlow is an **independent, open-source workspace for rideshare and delivery
-drivers** — a free alternative to paid driver-assistant apps. It has two parts:
+GigFlow Driver is a **free, open-source alternative to paid driver-assistant
+apps** like Mystro. It uses Android's accessibility APIs — the same approach
+the paid apps use — to watch the driver apps you choose, read each offer card
+as it appears, score it against thresholds you set, and show a floating
+verdict. Enable automation and it can accept the good ones (on a cancellable
+countdown) or decline the bad ones — hands-free.
 
-- **Web app** (`web/`) — a full Next.js platform: dashboard, earnings, expenses,
-  mileage, offers, rules, schedule, analytics, goals, CSV/Gmail import.
-- **Android companion** (`android/`) — an iOS-styled Kotlin app that watches
-  driver apps via `AccessibilityService`, scores each offer on-screen, and can
-  auto-accept or auto-decline based on your rules. Optional GPS shift tracking,
-  activity heatmap, voice alerts, and post-trip earnings capture.
+Everything runs on-device. No account required, no subscription, no tracking.
 
 > GigFlow is not affiliated with, endorsed by, or connected to Uber, Lyft,
-> DoorDash, Wolt, foodora, or any other platform. No platform provides a public
-> driver-facing API — see [Integrations](#integrations--honest-by-design) for
-> exactly how data gets in.
+> DoorDash, Wolt, foodora, or any other platform. All names are trademarks of
+> their owners, used only to identify compatibility.
 
 ## Features
 
-**Workspace (web)**
-- Earnings, expenses, and mileage logging with per-platform breakdowns
-- $/hour and $/distance analytics — weekly, monthly, daily chart
-- Goals, insights, schedule planning, offer history
-- CSV statement import + optional Gmail receipt sync
-- PWA-installable on iOS and Android browsers
-
-**Companion app (Android)**
-- Reads offer cards on-screen in Uber, Lyft, DoorDash, Instacart, Amazon Flex,
-  Spark, Wolt, and foodora — scores them against *your* rules instantly
-- Floating verdict overlay with **auto-accept countdown** (3/5/8/10s) and
-  auto-decline — both opt-in, both cancellable
-- **Per-app rule overrides** — different thresholds per platform
-- **Automatic GPS mileage** — a foreground "shift" tracker with jitter/teleport
-  filtering; optionally starts itself when a driver app opens
+- **On-screen offer scoring** — watches Uber Driver, Lyft Driver, Dasher,
+  Instacart Shopper, Amazon Flex, Spark Driver, Wolt Courier Partner, and
+  foodora rider; reads payout, distance, duration; scores against your rules
+- **Floating verdict overlay** — GOOD OFFER / BORDERLINE / SKIP IT with
+  $/distance and $/hour, plus tap-to-accept and tap-to-decline shortcuts
+- **Opt-in automation** — auto-accept on a 3/5/8/10s countdown you can
+  cancel, auto-decline, voice alerts. Off by default; you're in control
+- **Per-app rules** — different thresholds per platform (Wolt can have a
+  lower bar than Uber); reserved/scheduled offers are detected and handled
+  separately
+- **Automatic GPS mileage** — a foreground "shift" tracker with jitter and
+  teleport filtering; can start itself when a driver app opens
 - **Automatic earnings capture** — post-trip summary screens become earning
-  records, no typing
-- **Activity heatmap** — OpenStreetMap-based map of where *your* work happens
-- Reservation detection, voice alerts, offline-first local storage, web sync
+  records without typing anything
+- **Activity heatmap** — OpenStreetMap-based map of where *your* work
+  happens, built only from your own tracked shifts and tagged offers
+- **Diagnostics** — see exactly what the assistant last read inside each
+  driver app, so parse misses are debuggable instead of silent
+- **Local-first** — SQLite on-device, optional sync to the self-hosted web
+  workspace
 
 ## Screenshots
 
@@ -75,103 +75,80 @@ drivers** — a free alternative to paid driver-assistant apps. It has two parts
     <td align="center"><sub>Assistant rules</sub></td>
   </tr>
 </table>
-<img src="docs/screenshots/web-login.png" width="680" alt="Web app" />
 </div>
 
-## Quick start
+## Install
 
-**Web app**
+Grab the latest APK from
+[Releases](https://github.com/w0wzahh/GigFlow/releases) — Android 8.0+.
 
-```bash
-cd web
-cp ../.env.example .env     # set APP_SECRET
-npm install                 # runs prisma generate via postinstall
-npx prisma migrate dev      # create + migrate prisma/dev.db
-npm run db:seed             # seed the platform catalog
-npm run dev                 # http://localhost:3000
-```
+Setup takes under a minute — the app walks you through it in the Assist tab:
 
-Generate a real secret for anything beyond local dev:
+1. **Enable the accessibility service** (required — this is what lets
+   GigFlow see offer cards in your driver apps)
+2. **Allow location** (for automatic mileage + heatmap)
+3. **Allow notifications** (the shift tracker runs as a foreground service)
 
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+Then open a driver app and watch the verdict card appear on offers.
+Automation is off by default — enable it in **Assist → Automation** when
+you're ready.
 
-**Android companion** — grab the APK from
-[Releases](https://github.com/w0wzahh/GigFlow/releases), or build it:
+Or build it yourself:
 
 ```bash
 cd android
-gradle assembleDebug      # outputs app/build/outputs/apk/debug/app-debug.apk
+# android/local.properties must point at your SDK:
+#   sdk.dir=C:/Users/<you>/AppData/Local/Android/Sdk
+gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Then: enable the accessibility service (Assist tab → Setup), optionally grant
-location + overlay permissions for auto-shift tracking and the verdict overlay,
-and link sync via **Settings → Security → Android companion app** on the web.
+## How it works
 
-## Stack
-
-| Layer | Choice | Why |
-|---|---|---|
-| Web | Next.js 16 (App Router) + React 19, TypeScript strict | SSR + route handlers |
-| Data | Prisma 6 + SQLite (dev), Postgres-ready | zero-service local dev |
-| Auth | Custom: scrypt passwords + opaque session cookies | no provider lock-in |
-| Validation | Zod at every API boundary | shared schemas |
-| Tests | Vitest (unit + DB integration), Playwright (e2e) | fast loop + real flows |
-| Android | Kotlin, Views (hand-rolled iOS-style design system) | near-zero dependencies |
-| Map | osmdroid + OpenStreetMap tiles | no API key, cacheable |
+- **Accessibility service** scoped to the watched driver-app packages —
+  it can't see anything else on your phone
+- **Heuristic text parsing** of offer cards (layout-independent, but
+  layouts change — Diagnostics shows what it read when a screen is missed)
+- **`dispatchGesture` taps** for accept/decline — only when you enable it,
+  only inside the driver apps you watch
+- **Foreground location service** for shift mileage — visible in the
+  notification shade the whole time it runs
+- **osmdroid + OpenStreetMap** for the heatmap — no API key, tiles cache
+  on-device
 
 ## Project structure
 
 ```
-web/               the Next.js app — all web commands run inside this folder
-  prisma/          schema + migrations + seed
-  src/app/         routes: (marketing), (auth), (app), api/, onboarding/
-  src/lib/         auth, integrations, rules engine, metrics, import
-  tests/           unit, integration, e2e
-android/           GigFlow Driver — Kotlin companion app
-  app/src/main/    accessibility service, mileage tracker, overlay, UI
-docs/              architecture, API, integrations, database notes
-scripts/           repo tooling
+android/           the app — Kotlin, plain Views, near-zero dependencies
+  app/src/main/
+    java/.../      accessibility service, mileage tracker, parser, overlay,
+                   rule engine, local DB, sync client, iOS-style UI
+    res/           icons, service config, strings
+docs/              legal docs, screenshots, notes
 ```
 
-## Integrations — honest by design
+## Honest limitations
 
-No gig platform offers a public driver-facing API, so GigFlow ships three real
-paths instead of fake connections:
+- **Not an official integration.** No gig platform publishes a driver API;
+  this reads what's on screen, like every app in this category.
+- **Heuristic parsing.** Driver apps change layouts; if a card can't be
+  read, GigFlow errs toward silence and never guesses at buttons.
+- **Automation is opt-in** and only fires when a button was found
+  unambiguously.
+- **Policy note.** Third-party assistants may conflict with gig platforms'
+  terms — your call.
 
-- **CSV statement import** — parses platform earnings exports with column
-  auto-detection and idempotent `importKey` dedupe.
-- **Gmail receipt sync** — optional read-only OAuth; turns Uber/Lyft
-  trip-receipt emails into earnings.
-- **Android accessibility service** — reads offer cards on-screen, locally and
-  only in the apps you watch.
+## Privacy
 
-Everything else is manual tracking, clearly labeled. Details:
-[`docs/integrations.md`](docs/integrations.md).
-
-## Privacy & safety
-
-- Screen content never leaves the phone — only distilled offer fields sync,
-  and only if you configure it
-- GPS breadcrumbs stay on-device; the heatmap is built from *your* activity only
-- Automation (accept/decline, mileage, earnings capture) is opt-in and off or
-  clearly switchable
-- scrypt-hashed passwords, SHA-256 session tokens, per-user scoping, rate limits
-
-## Testing
-
-```bash
-cd web
-npm test                # vitest — unit + integration
-npm run typecheck       # tsc --noEmit
-npm run lint            # eslint
-npm run test:e2e        # playwright
-```
+Screen content never leaves the phone — only distilled offer fields (and
+only if you configure sync). GPS breadcrumbs stay on-device. Automation is
+opt-in and cancellable. Full details:
+[`docs/legal/privacy-policy.md`](docs/legal/privacy-policy.md).
 
 ## Contributing
 
-Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The most
+useful contributions are offer-parser fixes: driver apps change layouts
+constantly.
 
 ## License
 

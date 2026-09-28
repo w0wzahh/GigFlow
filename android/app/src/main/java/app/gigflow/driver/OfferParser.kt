@@ -13,7 +13,7 @@ import android.view.accessibility.AccessibilityNodeInfo
  */
 object OfferParser {
 
-    private val MONEY = Regex("""\$\s*(\d{1,4}(?:[.,]\d{2})?)""")
+    val MONEY = Regex("""\$\s*(\d{1,4}(?:[.,]\d{2})?)""")
     private val MILES = Regex("""(\d{1,3}(?:\.\d+)?)\s*(mi|miles?|mile)\b""", RegexOption.IGNORE_CASE)
     private val KM = Regex("""(\d{1,3}(?:\.\d+)?)\s*km\b""", RegexOption.IGNORE_CASE)
     private val MINUTES = Regex("""(\d{1,3})\s*min""", RegexOption.IGNORE_CASE)
