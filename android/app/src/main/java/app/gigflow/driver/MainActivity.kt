@@ -99,6 +99,7 @@ class MainActivity : Activity() {
         }
 
         show(0)
+        UpdateChecker.promptIfNewer(this, p)
     }
 
     private fun show(i: Int) {

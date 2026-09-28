@@ -381,7 +381,7 @@ fun iosButton(ctx: Context, p: Palette, label: String, tint: Int? = null): Butto
 
 /**
  * iOS-style bottom sheet dialog — slides up over dim, grabber handle,
- * drag-down to dismiss.
+ * tap anywhere outside (or back) to dismiss.
  */
 class IosSheet(ctx: Context, private val p: Palette) {
 
@@ -408,10 +408,26 @@ class IosSheet(ctx: Context, private val p: Palette) {
         ) }
         container.setPadding(0, 0, 0, dp(ctx, 20f))
 
-        dialog.setContentView(container)
+        // Full-height window with a tap-catcher behind the card — touches on
+        // the dimmed area dismiss with the same slide-down animation (the
+        // default dialog window only covered the card, so outside taps did
+        // nothing).
+        val scrim = View(ctx).apply {
+            isClickable = true
+            setOnClickListener { dismiss() }
+        }
+        val outer = FrameLayout(ctx).apply {
+            addView(scrim, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            addView(container, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+        }
+
+        dialog.setContentView(outer)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.window?.let { w ->
-            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            w.setGravity(Gravity.BOTTOM)
+            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             w.attributes = w.attributes.apply {
                 windowAnimations = 0
             }

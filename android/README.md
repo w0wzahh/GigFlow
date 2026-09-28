@@ -74,6 +74,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## Data handling
 
-- Everything is on-device: screen content, offers, records, GPS — the app
-  makes no network calls and needs no account.
+- Everything is on-device: screen content, offers, records, GPS. The only
+  network call is the anonymous GitHub Releases update check (and the APK
+  download if you update).
 - Records live in `gigflow.db` (SQLite, private app storage).

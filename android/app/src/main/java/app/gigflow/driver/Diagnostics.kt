@@ -31,13 +31,18 @@ object Diagnostics {
         val prefs = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         val all = JSONObject(prefs.getString(KEY, "{}") ?: "{}")
         val prev = all.optJSONObject(pkg)
-        if (prev != null && outcome == "idle" &&
-            System.currentTimeMillis() - prev.optLong("at") < IDLE_WRITE_MS
+        val joined = texts.take(MAX_TEXTS).joinToString("\n")
+        // Skip repeat writes: idle is throttled, and an unchanged outcome
+        // with identical texts doesn't need re-persisting every frame.
+        if (prev != null &&
+            System.currentTimeMillis() - prev.optLong("at") < IDLE_WRITE_MS &&
+            (outcome == "idle" ||
+                (prev.optString("outcome") == outcome && prev.optString("texts") == joined))
         ) return
         val o = JSONObject()
             .put("at", System.currentTimeMillis())
             .put("outcome", outcome)
-            .put("texts", texts.take(MAX_TEXTS).joinToString("\n"))
+            .put("texts", joined)
         prefs.edit().putString(KEY, all.put(pkg, o).toString()).apply()
     }
 

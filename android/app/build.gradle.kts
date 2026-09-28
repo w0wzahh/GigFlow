@@ -10,8 +10,8 @@ android {
         applicationId = "app.gigflow.driver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.3.0"
+        versionCode = 18
+        versionName = "1.4.0"
     }
 
     buildTypes {
@@ -28,5 +28,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    // FileProvider for handing the downloaded update APK to the installer.
+    implementation("androidx.core:core:1.13.1")
 }
 

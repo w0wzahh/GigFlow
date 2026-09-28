@@ -53,8 +53,10 @@ Everything runs on-device. No account required, no subscription, no tracking.
   records without typing anything
 - **Diagnostics** — see exactly what the assistant last read inside each
   driver app, so parse misses are debuggable instead of silent
-- **100% local** — every record lives in on-device SQLite; nothing leaves
-  the phone
+- **Self-updating** — checks GitHub Releases for a newer APK (at most once
+  per 6h) and installs it through the system installer when you confirm
+- **100% local** — every record lives in on-device SQLite; the only
+  network call is the anonymous GitHub update check
 
 ## Screenshots
 
@@ -110,8 +112,9 @@ gradle assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
   only inside the driver apps you watch
 - **Foreground location service** for shift mileage — visible in the
   notification shade the whole time it runs
-- **Zero third-party dependencies** — plain Android Views and SQLite, no
-  accounts, no network calls
+- **GitHub Releases updater** — one anonymous GET to `api.github.com` to
+  check for a newer version; the APK installs via the system installer
+  (you confirm, Android asks "allow this source" once)
 
 ## Project structure
 
@@ -137,8 +140,9 @@ docs/              legal docs, screenshots, notes
 
 ## Privacy
 
-Screen content never leaves the phone — the app makes no network calls at
-all. Automation is opt-in and cancellable. Full details:
+Screen content never leaves the phone — the only network traffic is the
+anonymous update check against GitHub. Automation is
+opt-in and cancellable. Full details:
 [`docs/legal/privacy-policy.md`](docs/legal/privacy-policy.md).
 
 ## Contributing

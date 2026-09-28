@@ -331,6 +331,20 @@ class AssistScreen(
         ) { openUrl("https://github.com/w0wzahh/GigFlow/blob/master/docs/legal/terms-of-service.md") })
         card.addView(Sections.separator(ctx, p))
         card.addView(Sections.row(ctx, p,
+            title = "Check for updates",
+            subtitle = "Looks at GitHub Releases for a newer APK",
+            iconGlyph = "globe", iconTint = p.tint,
+            chevron = true,
+        ) {
+            UpdateChecker.check(ctx) { rel ->
+                if (rel != null) UpdateChecker.showUpdateSheet(ctx, p, rel)
+                else Toast.makeText(ctx,
+                    "You're up to date (v${UpdateChecker.currentVersion(ctx)})",
+                    Toast.LENGTH_SHORT).show()
+            }
+        })
+        card.addView(Sections.separator(ctx, p))
+        card.addView(Sections.row(ctx, p,
             title = "Version",
             value = try {
                 ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName

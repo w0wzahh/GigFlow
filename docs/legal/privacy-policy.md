@@ -22,7 +22,7 @@ We never see your Gmail password and cannot send mail.
 
 ## 2. What the Android companion collects
 
-The companion app is **local-first**:
+The companion app is **fully local**:
 
 - **Screen content:** the accessibility service reads offer cards inside
   the driver apps you choose (Uber, Lyft, Dasher, Instacart, Amazon Flex,
@@ -30,13 +30,15 @@ The companion app is **local-first**:
   never transmitted. Only distilled fields — payout, distance, duration,
   verdict, action taken — are kept, in a capped on-device log.
 - **Location:** only while an active shift is running (started by you, or
-  automatically if you enable auto-tracking) the app records GPS
-  breadcrumbs to a local database. The work heatmap is built from these
-  points. Location is never collected in the background outside a shift
-  and is never sent off-device except through sync you configure.
-- **Sync:** if you paste your web URL and a personal API token, the app
-  pushes distilled offer fields and your logged records to your GigFlow
-  account. If you never configure sync, nothing leaves the phone.
+  automatically if you enable auto-tracking) the app records GPS positions
+  on-device to compute distance. Location is never collected outside a
+  shift and never leaves the phone.
+- **Update checks:** the app makes exactly one kind of network request —
+  a GET to the GitHub Releases API (`api.github.com`) to see if a newer
+  APK exists, and the APK download if you choose to update. No personal
+  data is sent; GitHub sees only an anonymous request from your IP. You
+  can trigger this manually (Assistant → Check for updates) or wait for
+  the automatic check (at most once every 6 hours).
 
 ## 3. What we do not do
 
@@ -44,18 +46,11 @@ The companion app is **local-first**:
 - No continuous location tracking; no scraping of platform accounts; no
   access to apps outside the ones you explicitly watch.
 
-## 4. Cookies
+## 4. Retention and deletion
 
-The web app uses one strictly-necessary session cookie (`HttpOnly`,
-`SameSite=Lax`). There are no analytics, advertising, or third-party
-cookies. See [Cookie Policy](cookie-policy.md).
-
-## 5. Retention and deletion
-
-Your data is kept while your account exists. Export everything as JSON, or
-delete your account — which removes all associated records — from
-**Settings → Data**. Local app data on Android is removed when you clear
-app storage or uninstall.
+All data lives in the app's private storage on your device. Delete
+individual records in-app, clear app storage, or uninstall to remove
+everything.
 
 ## 6. Security
 
