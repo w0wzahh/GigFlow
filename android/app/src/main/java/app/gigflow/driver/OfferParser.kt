@@ -154,7 +154,7 @@ object OfferParser {
 
     /** Apps where the whole request card accepts on tap — no labelled button.
      *  Uber docs: "tap anywhere on the black bar"; Lyft: "tap anywhere". */
-    private val TAP_ANYWHERE_PKGS = setOf("com.uber.driver", "com.lyft.driver")
+    private val TAP_ANYWHERE_PKGS = setOf("com.ubercab.driver", "com.lyft.android.driver")
 
     data class FlatNode(
         val text: String,
