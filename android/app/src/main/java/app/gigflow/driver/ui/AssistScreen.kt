@@ -458,8 +458,8 @@ class AssistScreen(
     }
 
     private val watchedApps = listOf(
-        "Uber Driver" to "com.uber.driver",
-        "Lyft Driver" to "com.lyft.driver",
+        "Uber Driver" to "com.ubercab.driver",
+        "Lyft Driver" to "com.lyft.android.driver",
         "Dasher" to "com.doordash.driverapp",
         "Instacart Shopper" to "com.instacart.shopper",
         "Amazon Flex" to "com.amazon.rabbit",
