@@ -28,7 +28,7 @@ object UpdateChecker {
 
     private const val REPO = "w0wzahh/GigFlow"
     private const val API = "https://api.github.com/repos/$REPO/releases/latest"
-    private const val APK_NAME_PREFIX = "GigFlow-"
+    private const val APK_NAME_PREFIX = "gigflow-" // release assets are lowercase: gigflow-vX.Y.Z.apk
     private val io = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
 
@@ -68,14 +68,14 @@ object UpdateChecker {
                     setRequestProperty("User-Agent", "GigFlow-Android/$current")
                 }
                 if (conn.responseCode != 200) null else {
-                    val body = conn.inputStream.bufferedReader().readText()
+                    val body = conn.inputStream.bufferedReader().use { it.readText() }
                     val json = JSONObject(body)
                     val version = json.optString("tag_name").removePrefix("v")
                     val assets = json.optJSONArray("assets")
                     var apkUrl = ""; var size = 0L
                     if (assets != null) for (i in 0 until assets.length()) {
                         val a = assets.getJSONObject(i)
-                        val name = a.optString("name")
+                        val name = a.optString("name").lowercase()
                         if (name.startsWith(APK_NAME_PREFIX) && name.endsWith(".apk")) {
                             apkUrl = a.optString("browser_download_url")
                             size = a.optLong("size")

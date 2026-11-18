@@ -26,9 +26,15 @@ object OfferLog {
         val currency: String = "$",
     )
 
+    private fun load(prefs: android.content.SharedPreferences): JSONArray = try {
+        JSONArray(prefs.getString(KEY, "[]") ?: "[]")
+    } catch (_: Exception) {
+        JSONArray() // corrupt log starts over rather than crashing the reader
+    }
+
     fun add(context: Context, e: Entry) {
         val prefs = context.getSharedPreferences("gigflow_log", Context.MODE_PRIVATE)
-        val arr = JSONArray(prefs.getString(KEY, "[]"))
+        val arr = load(prefs)
         val o = JSONObject()
             .put("at", e.at)
             .put("pkg", e.pkg)
@@ -51,7 +57,7 @@ object OfferLog {
 
     fun all(context: Context): List<Entry> {
         val prefs = context.getSharedPreferences("gigflow_log", Context.MODE_PRIVATE)
-        val arr = JSONArray(prefs.getString(KEY, "[]"))
+        val arr = load(prefs)
         return (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
             Entry(

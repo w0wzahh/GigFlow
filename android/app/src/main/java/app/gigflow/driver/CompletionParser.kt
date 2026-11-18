@@ -66,7 +66,10 @@ object CompletionParser {
         }
         val payout = money.filter { !it.isTip && it.amount > 0.5 }
             .maxOfOrNull { it.amount } ?: return null
-        if (payout > 5000) return null // absurd — likely a substring artefact
+        // Absurd-amount guard against substring artefacts (IDs, timestamps).
+        // Kept loose on purpose: zero-decimal currencies like HUF run ~100x
+        // USD magnitudes, so a unit cap that fits dollars rejects real pay.
+        if (payout > 100_000) return null
         val currency = money.firstOrNull { it.amount == payout }?.currency ?: "$"
 
         val tip = money.filter { it.isTip }

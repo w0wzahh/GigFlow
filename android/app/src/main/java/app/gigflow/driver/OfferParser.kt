@@ -172,13 +172,17 @@ object OfferParser {
             val t = n.text?.toString()?.trim().orEmpty()
             val cd = n.contentDescription?.toString()?.trim().orEmpty()
             val label = if (t.isNotEmpty()) t else cd
-            if (label.isNotEmpty()) {
-                val r = Rect()
-                n.getBoundsInScreen(r)
-                out.add(FlatNode(label, n.viewIdResourceName, r, n.isClickable))
-            }
+            // Copy everything before recycle() — FlatNode keeps no node refs.
+            val r = Rect()
+            n.getBoundsInScreen(r)
+            val viewId = n.viewIdResourceName
+            val clickable = n.isClickable
             for (i in 0 until n.childCount) {
                 n.getChild(i)?.let(stack::add)
+            }
+            n.recycle()
+            if (label.isNotEmpty()) {
+                out.add(FlatNode(label, viewId, r, clickable))
             }
         }
         return out
@@ -221,7 +225,9 @@ object OfferParser {
             if (TIMER_HINTS.containsMatchIn(t)) return@mapNotNull null
             HOURS_MIN.find(t)?.let { m ->
                 val h = m.groupValues[1].toDouble()
-                val mnt = m.groupValues.getOrNull(2)?.toDoubleOrNull() ?: 0.0
+                // Group 2 is the unit word ("hr", "óra"); minutes digits
+                // live in group 3.
+                val mnt = m.groupValues.getOrNull(3)?.toDoubleOrNull() ?: 0.0
                 h * 60 + mnt
             } ?: MINUTES.find(t)?.groupValues?.get(1)?.toDoubleOrNull()
         }.filter { it in 1.0..600.0 }.maxOrNull()

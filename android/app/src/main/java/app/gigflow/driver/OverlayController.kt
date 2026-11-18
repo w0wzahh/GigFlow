@@ -137,14 +137,18 @@ class OverlayController(private val service: AccessibilityService) {
         }
 
         // Offer's own expiry timer, if the card showed one ("0:15", "12s").
-        if (autoAcceptSec <= 0 && o.expiresInSec != null) {
-            expiry = TextView(service).apply {
-                text = "Expires in ${o.expiresInSec}s"
-                setTextColor(Color.parseColor("#8E8E93"))
-                textSize = 12f
-                setPadding(0, 8.dp(), 0, 0)
+        // The ticker arms even while auto-accept counts down — without it a
+        // card that dies first still gets tapped at stale bounds.
+        if (o.expiresInSec != null) {
+            if (autoAcceptSec <= 0) {
+                expiry = TextView(service).apply {
+                    text = "Expires in ${o.expiresInSec}s"
+                    setTextColor(Color.parseColor("#8E8E93"))
+                    textSize = 12f
+                    setPadding(0, 8.dp(), 0, 0)
+                }
+                container.addView(expiry)
             }
-            container.addView(expiry)
             tickExpiry(o.expiresInSec) { onAction(Action.EXPIRED) }
         }
 

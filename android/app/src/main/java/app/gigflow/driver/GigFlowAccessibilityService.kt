@@ -116,11 +116,15 @@ class GigFlowAccessibilityService : AccessibilityService() {
      * back to scanning all interactive windows for the driver app.
      */
     private fun appWindowRoot(pkg: String): android.view.accessibility.AccessibilityNodeInfo? {
-        rootInActiveWindow?.let { if (it.packageName?.toString() == pkg) return it }
+        rootInActiveWindow?.let {
+            if (it.packageName?.toString() == pkg) return it
+            it.recycle() // non-matching roots are ours to free
+        }
         try {
             for (w in windows) {
                 val r = w.root ?: continue
                 if (r.packageName?.toString() == pkg) return r
+                r.recycle()
             }
         } catch (_: Exception) { }
         return null
@@ -440,9 +444,19 @@ class GigFlowAccessibilityService : AccessibilityService() {
         offerGone()
     }
 
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        // Service toggled off in Settings — tear everything down now, don't
+        // wait for onDestroy or a stale `instance` would still answer the UI.
+        offerGone()
+        instance = null
+        return super.onUnbind(intent)
+    }
+
     override fun onDestroy() {
         instance = null
         cancelAutoAccept()
+        hideRunnable?.let { handler.removeCallbacks(it) }
+        idleStopCheck?.let { handler.removeCallbacks(it) }
         overlay.hide()
         tts?.shutdown()
         tts = null

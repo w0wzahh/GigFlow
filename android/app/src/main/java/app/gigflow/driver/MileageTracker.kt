@@ -76,21 +76,28 @@ class MileageTracker : Service(), LocationListener {
 
         running = true
         kmSoFar = 0.0
+        last = null // a stale anchor from a previous shift corrupts the first fix
         startedAt = System.currentTimeMillis()
         db = LocalDb(this)
 
         lm = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        // Request each provider independently — with only COARSE permission,
+        // the GPS call throws and the network fallback must still register.
+        var listening = false
         try {
             lm?.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER, 2_000L, 5f, this,
             )
+            listening = true
+        } catch (_: SecurityException) {}
+        try {
             // Network provider fills gaps where GPS drops (tunnels, urban canyons).
             lm?.requestLocationUpdates(
                 LocationManager.NETWORK_PROVIDER, 8_000L, 25f, this,
             )
-        } catch (_: SecurityException) {
-            stopTracking()
-        }
+            listening = true
+        } catch (_: SecurityException) {}
+        if (!listening) stopTracking()
     }
 
     override fun onLocationChanged(location: Location) {
@@ -101,7 +108,13 @@ class MileageTracker : Service(), LocationListener {
         val prev = last
         if (prev != null) {
             val d = prev.distanceTo(location)
-            if (d < 5f || d > 500f) return // stationary jitter or a teleport
+            if (d < 5f) return // stationary jitter — keep the anchor
+            if (d > 500f) {
+                // Teleport — re-anchor instead of discarding every fix that
+                // follows, or the odometer stays frozen for the whole shift.
+                last = location
+                return
+            }
             kmSoFar += d / 1000.0
             updateNotification()
         }

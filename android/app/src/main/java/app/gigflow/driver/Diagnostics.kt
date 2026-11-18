@@ -27,9 +27,16 @@ object Diagnostics {
         val texts: List<String>,
     )
 
+    private fun load(ctx: Context): JSONObject = try {
+        JSONObject(
+            ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+                .getString(KEY, "{}") ?: "{}",
+        )
+    } catch (_: Exception) { JSONObject() }
+
     fun record(ctx: Context, pkg: String, outcome: String, texts: List<String>) {
         val prefs = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val all = JSONObject(prefs.getString(KEY, "{}") ?: "{}")
+        val all = load(ctx)
         val prev = all.optJSONObject(pkg)
         val joined = texts.take(MAX_TEXTS).joinToString("\n")
         // Skip repeat writes: idle is throttled, and an unchanged outcome
@@ -50,10 +57,7 @@ object Diagnostics {
     }
 
     fun get(ctx: Context, pkg: String): Snap? {
-        val all = JSONObject(
-            ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-                .getString(KEY, "{}") ?: "{}",
-        )
+        val all = load(ctx)
         val o = all.optJSONObject(pkg) ?: return null
         return Snap(
             at = o.optLong("at"),

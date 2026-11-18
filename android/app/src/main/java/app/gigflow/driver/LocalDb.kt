@@ -40,6 +40,24 @@ class LocalDb(ctx: Context) : SQLiteOpenHelper(ctx, "gigflow.db", null, 3) {
 
     override fun onUpgrade(db: SQLiteDatabase, old: Int, new: Int) {
         if (old < 2) createSchedules(db)
+        if (old < 3) {
+            // The `synced` column predates the version bump in some dev
+            // builds — add it only when actually missing, or the upgrade
+            // crashes halfway and leaves the DB wedged.
+            ensureColumn(db, "records", "synced")
+            ensureColumn(db, "schedules", "synced")
+        }
+    }
+
+    private fun ensureColumn(db: SQLiteDatabase, table: String, col: String) {
+        val has = db.rawQuery("PRAGMA table_info($table)", null).use { c ->
+            var found = false
+            while (c.moveToNext()) if (c.getString(1) == col) { found = true; break }
+            found
+        }
+        if (!has) {
+            db.execSQL("ALTER TABLE $table ADD COLUMN $col INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     data class Row(

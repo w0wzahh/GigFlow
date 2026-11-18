@@ -110,8 +110,13 @@ class SettingsRepository(context: Context) {
 
     // ---- Per-app rule overrides (Mystro's per-service filters) ----
 
-    private fun overrides(): JSONObject =
+    private fun overrides(): JSONObject = try {
         JSONObject(prefs.getString("platform_rules", "{}") ?: "{}")
+    } catch (_: Exception) {
+        // Corrupt value (older builds could store the literal "null") —
+        // treat as no overrides instead of crashing.
+        JSONObject()
+    }
 
     /** Stored override object for a package, or null to inherit globals. */
     fun platformOverride(pkg: String): JSONObject? =
