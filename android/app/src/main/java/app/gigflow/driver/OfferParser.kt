@@ -136,7 +136,7 @@ object OfferParser {
     // nav tab can't be mistaken for an accept affordance.
     private val RESERVE_ACCEPT = Regex("""schedule|book|reserve|foglal|boka""", RegexOption.IGNORE_CASE)
     private val DECLINE_WORDS = Regex(
-        """decline|\bpass\b|reject|no thanks|skip|close|refus|rechaz|recus|ablehn|avvis|afvis|""" +
+        """decline|\bpass\b|reject|no thanks|skip|close|dismiss|refus|rechaz|recus|ablehn|avvis|afvis|""" +
             """odmítn|odmiet|odrzu|hylk|elutasít|visszautasít|reddet|atmest|noraid|""" +
             """відхил|отказ|norite|refuza""",
         RegexOption.IGNORE_CASE,
@@ -154,7 +154,7 @@ object OfferParser {
 
     /** Apps where the whole request card accepts on tap — no labelled button.
      *  Uber docs: "tap anywhere on the black bar"; Lyft: "tap anywhere". */
-    private val TAP_ANYWHERE_PKGS = setOf("com.uber.driver", "com.lyft.driver")
+    private val TAP_ANYWHERE_PKGS = setOf("com.ubercab.driver", "com.lyft.android.driver")
 
     data class FlatNode(
         val text: String,
