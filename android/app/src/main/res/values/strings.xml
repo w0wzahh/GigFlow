@@ -9,8 +9,8 @@
          literal list in res/xml/accessibility_service_config.xml — keep the
          two in sync when adding or removing apps. -->
     <string-array name="watched_packages">
-        <item>com.uber.driver</item>
-        <item>com.lyft.driver</item>
+        <item>com.ubercab.driver</item>
+        <item>com.lyft.android.driver</item>
         <item>com.doordash.driverapp</item>
         <item>com.instacart.shopper</item>
         <item>com.amazon.rabbit</item>
